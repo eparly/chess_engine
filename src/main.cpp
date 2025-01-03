@@ -32,8 +32,8 @@ int main() {
     board.addPiece(whiteRookTexture, 0, 0);
     board.addPiece(whiteKnightTexture, 1, 0);
     board.addPiece(whiteBishopTexture, 2, 0);
-    board.addPiece(whiteQueenTexture, 3, 0);
-    board.addPiece(whiteKingTexture, 4, 0);
+    board.addPiece(whiteQueenTexture, 4, 0);
+    board.addPiece(whiteKingTexture, 3, 0);
     board.addPiece(whiteBishopTexture, 5, 0);
     board.addPiece(whiteKnightTexture, 6, 0);
     board.addPiece(whiteRookTexture, 7, 0);
@@ -45,8 +45,8 @@ int main() {
     board.addPiece(blackRookTexture, 0, 7);
     board.addPiece(blackKnightTexture, 1, 7);
     board.addPiece(blackBishopTexture, 2, 7);
-    board.addPiece(blackQueenTexture, 3, 7);
-    board.addPiece(blackKingTexture, 4, 7);
+    board.addPiece(blackQueenTexture, 4, 7);
+    board.addPiece(blackKingTexture, 3, 7);
     board.addPiece(blackBishopTexture, 5, 7);
     board.addPiece(blackKnightTexture, 6, 7);
     board.addPiece(blackRookTexture, 7, 7);
@@ -58,6 +58,11 @@ int main() {
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
                 window.close();
+            if (event.type == sf::Event::MouseButtonPressed) {
+                if (event.mouseButton.button == sf::Mouse::Left) {
+                    board.handleEvent(event, window);
+                }
+            }
         }
 
         window.clear();
