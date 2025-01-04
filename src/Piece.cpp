@@ -1,31 +1,49 @@
-enum class PieceType
-{
-    King,
-    Queen,
-    Bishop,
-    Knight,
-    Rook,
-    Pawn,
-    None
-};
-enum class PieceColour
-{
-    White,
-    Black,
-    None
-};
+#include "piece.h"
 
-class Piece {
-    public:
-        PieceType type;
-        PieceColour colour;
+#include <SFML/Graphics.hpp>
+#include <vector>
 
-        int x, y;
+Piece::Piece(const sf::Texture& texture, int x, int y, int squareSize, PieceColour colour, PieceType type)
+    : colour(colour), type(type) {
+    sprite.setTexture(texture);
+    float scale = 0.8f;
+    sprite.setScale(scale, scale);
+    sprite.setPosition(x + squareSize / 2 - sprite.getGlobalBounds().width / 2,
+                       y + squareSize / 2 - sprite.getGlobalBounds().height / 2);
+}
 
-        Piece(
-            PieceType type = PieceType::None, 
-            PieceColour colour = PieceColour::None, 
-            int x = 0, 
-            int y = 0
-        ): type(type), colour(colour), x(x), y(y) {}
-};
+void Piece::draw(sf::RenderWindow& window) {
+    window.draw(sprite);
+}
+
+void Piece::setPosition(sf::Vector2f position) {
+    sprite.setPosition(position.x, position.y);
+}
+
+sf::Vector2f Piece::getPosition() {
+    return sprite.getPosition();
+}
+
+sf::FloatRect Piece::getBounds() {
+    return sprite.getGlobalBounds();
+}
+
+PieceColour Piece::getColour() {
+    return colour;
+}
+
+PieceType Piece::getType() const {
+    return type;
+}
+
+std::string Piece::getTypeAsString() const {
+    switch (getType()) {
+        case PieceType::King: return "King";
+        case PieceType::Queen: return "Queen";
+        case PieceType::Rook: return "Rook";
+        case PieceType::Bishop: return "Bishop";
+        case PieceType::Knight: return "Knight";
+        case PieceType::Pawn: return "Pawn";
+        default: return "Unknown";
+    }
+}

@@ -3,27 +3,16 @@
 
 #include <SFML/Graphics.hpp>
 #include <vector>
-
-class Piece {
-public:
-    Piece(const sf::Texture& texture, int x, int y, int squareSize);
-    void draw(sf::RenderWindow& window);    
-    sf::Vector2f getPosition();
-    sf::FloatRect getBounds();
-    void setPosition(sf::Vector2f position);
-
-private:
-    sf::Sprite sprite;
-};
+#include "piece.h"
 
 class Board {
 public:
     Board(int squareSize, sf::Color lightColor, sf::Color darkColor);
     void draw(sf::RenderWindow& window);
-    void addPiece(const sf::Texture& texture, int x, int y);
+    void addPiece(const sf::Texture& texture, int x, int y, PieceColour colour, PieceType type);
     void handleEvent(sf::Event& event, sf::RenderWindow& window);
     void selectPiece(const sf::Vector2f& mousePos);
-    bool isValidMove(const Piece &piece, sf::Vector2f targetPos);
+    bool isValidMove(Piece &piece, sf::Vector2f targetPos);
 
 private:
     int squareSize;
@@ -42,6 +31,11 @@ private:
     bool highlightSquare = false;
     int highlightedX = -1;
     int highlightedY = -1;
+
+    bool isWhiteTurn = true;
+    void endTurn();
+
+    void capturePiece(Piece &piece);
 };
 
 #endif // BOARD_H

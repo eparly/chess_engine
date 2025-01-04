@@ -1,5 +1,6 @@
 #include <SFML/Graphics.hpp>
 #include "board.h"
+#include "piece.h"
 
 int main() {
     sf::RenderWindow window(sf::VideoMode(800, 800), "Chessboard");
@@ -29,29 +30,29 @@ int main() {
     }
 
     // Add white pieces
-    board.addPiece(whiteRookTexture, 0, 0);
-    board.addPiece(whiteKnightTexture, 1, 0);
-    board.addPiece(whiteBishopTexture, 2, 0);
-    board.addPiece(whiteQueenTexture, 4, 0);
-    board.addPiece(whiteKingTexture, 3, 0);
-    board.addPiece(whiteBishopTexture, 5, 0);
-    board.addPiece(whiteKnightTexture, 6, 0);
-    board.addPiece(whiteRookTexture, 7, 0);
+    board.addPiece(whiteRookTexture, 0, 0, PieceColour::White, PieceType::Rook);
+    board.addPiece(whiteKnightTexture, 1, 0, PieceColour::White, PieceType::Knight);
+    board.addPiece(whiteBishopTexture, 2, 0, PieceColour::White, PieceType::Bishop);
+    board.addPiece(whiteQueenTexture, 4, 0, PieceColour::White, PieceType::Queen);
+    board.addPiece(whiteKingTexture, 3, 0, PieceColour::White, PieceType::King);
+    board.addPiece(whiteBishopTexture, 5, 0, PieceColour::White, PieceType::Bishop);
+    board.addPiece(whiteKnightTexture, 6, 0, PieceColour::White, PieceType::Knight);
+    board.addPiece(whiteRookTexture, 7, 0, PieceColour::White, PieceType::Rook);
     for (int i = 0; i < 8; ++i) {
-        board.addPiece(whitePawnTexture, i, 1);
+        board.addPiece(whitePawnTexture, i, 1, PieceColour::White, PieceType::Pawn);
     }
 
     // Add black pieces
-    board.addPiece(blackRookTexture, 0, 7);
-    board.addPiece(blackKnightTexture, 1, 7);
-    board.addPiece(blackBishopTexture, 2, 7);
-    board.addPiece(blackQueenTexture, 4, 7);
-    board.addPiece(blackKingTexture, 3, 7);
-    board.addPiece(blackBishopTexture, 5, 7);
-    board.addPiece(blackKnightTexture, 6, 7);
-    board.addPiece(blackRookTexture, 7, 7);
+    board.addPiece(blackRookTexture, 0, 7, PieceColour::Black, PieceType::Rook);
+    board.addPiece(blackKnightTexture, 1, 7, PieceColour::Black, PieceType::Knight);
+    board.addPiece(blackBishopTexture, 2, 7, PieceColour::Black, PieceType::Bishop);
+    board.addPiece(blackQueenTexture, 4, 7, PieceColour::Black, PieceType::Queen);
+    board.addPiece(blackKingTexture, 3, 7, PieceColour::Black, PieceType::King);
+    board.addPiece(blackBishopTexture, 5, 7, PieceColour::Black, PieceType::Bishop);
+    board.addPiece(blackKnightTexture, 6, 7, PieceColour::Black, PieceType::Knight);
+    board.addPiece(blackRookTexture, 7, 7, PieceColour::Black, PieceType::Rook);
     for (int i = 0; i < 8; ++i) {
-        board.addPiece(blackPawnTexture, i, 6);
+        board.addPiece(blackPawnTexture, i, 6, PieceColour::Black, PieceType::Pawn);
     }
     while (window.isOpen()) {
         sf::Event event;

@@ -1,31 +1,8 @@
 #include "board.h"
+#include "piece.h"
 #include <SFML/Graphics.hpp>
 #include <cmath>
 #include <iostream>
-
-Piece::Piece(const sf::Texture& texture, int x, int y, int squareSize){
-    sprite.setTexture(texture);
-    float scale = 0.8f;
-    sprite.setScale(scale, scale);
-    sprite.setPosition(x + squareSize / 2 - sprite.getGlobalBounds().width / 2,
-                       y + squareSize / 2 - sprite.getGlobalBounds().height / 2);
-}
-
-void Piece::draw(sf::RenderWindow& window) {
-    window.draw(sprite);
-}
-
-void Piece::setPosition(sf::Vector2f position) {
-    sprite.setPosition(position.x, position.y);
-}
-
-sf::Vector2f Piece::getPosition() {
-    return sprite.getPosition();
-}
-
-sf::FloatRect Piece::getBounds() {
-    return sprite.getGlobalBounds();
-}
 
 Board::Board(int squareSize, sf::Color lightColor, sf::Color darkColor)
     : squareSize(squareSize), lightColor(lightColor), darkColor(darkColor) {}
@@ -52,8 +29,9 @@ void Board::draw(sf::RenderWindow& window) {
     }
 }
 
-void Board::addPiece(const sf::Texture& texture, int x, int y) {
-    pieces.emplace_back(texture, x * squareSize, y * squareSize, squareSize);
+void Board::addPiece(const sf::Texture& texture, int x, int y, PieceColour colour, PieceType type) {
+    sf::Vector2f position = snapToSquare(sf::Vector2f(x*squareSize, y*squareSize));
+    pieces.emplace_back(texture, position.x, position.y, squareSize, colour, type);
 }
 
 sf::Vector2f Board::snapToSquare(const sf::Vector2f& position) {
@@ -87,8 +65,25 @@ void Board::handleEvent(sf::Event& event, sf::RenderWindow& window) {
             } else {
                 // Move the selected piece to the new position
                 sf::Vector2f targetPos = snapToSquare(mousePos);
-                if (isValidMove(*selectedPiece, targetPos)) {
+                if (isValidMove(*selectedPiece, targetPos) && isWhiteTurn == (selectedPiece->getColour() == PieceColour::White)) {
+                    // Check if there is a piece at the target position
                     selectedPiece->setPosition(targetPos);
+                    std::cout << "Moving piece" << selectedPiece->getTypeAsString() << std::endl;
+                    std::cout << "Target position: " << targetPos.x << ", " << targetPos.y << std::endl;
+                    std::cout << "Original position: " << originalPosition.x << ", " << originalPosition.y << std::endl;
+                    std::cout << "Selected piece position: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
+                    bool isPieceAtTarget = false;
+                    for (auto& piece : pieces) {
+                        if (piece.getPosition() == targetPos && selectedPiece != &piece) {
+                            std::cout << "Piece at target position: " << piece.getTypeAsString() << std::endl;
+                            isPieceAtTarget = true;
+                            if (piece.getColour() != selectedPiece->getColour()) {
+                                capturePiece(piece);
+                            }
+                            break;
+                        }
+                    }
+                    endTurn();
                 }
                 // Unselect the piece
                 selectedPiece = nullptr;
@@ -102,13 +97,37 @@ void Board::selectPiece(const sf::Vector2f& mousePos) {
         if(piece.getBounds().contains(mousePos)) {
             selectedPiece = &piece;
             originalPosition = piece.getPosition();
+            std::cout << "Selecting piece of type: " << selectedPiece->getTypeAsString() << std::endl;
+            std::cout << "Selected piece position: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
             break;
         }
     }
 }
 
-bool Board::isValidMove(const Piece& piece, sf::Vector2f position) {
+bool Board::isValidMove(Piece& piece, sf::Vector2f position) {
     int x = position.x / squareSize;
     int y = position.y / squareSize;
+    //check if the  spot is occupied by a piece of the same colour
+    for(auto& p : pieces){
+        sf::Vector2f piecePosition = snapToSquare(p.getPosition());
+        if(piecePosition== position && p.getColour() == piece.getColour()){
+            return false;
+        }
+    }
     return x >= 0 && x < 8 && y >= 0 && y < 8;
+}
+
+
+void Board::endTurn() {
+    isWhiteTurn = !isWhiteTurn;
+}
+
+void Board::capturePiece(Piece& piece) {
+    for (auto it = pieces.begin(); it != pieces.end(); ++it) {
+        if(it->getPosition() == piece.getPosition() && it->getColour() == piece.getColour()) {
+            std::cout << "Capturing piece" << it->getTypeAsString() << std::endl;
+            pieces.erase(it);
+            break;
+        }
+    }
 }
