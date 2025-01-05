@@ -12,7 +12,7 @@ public:
     void addPiece(const sf::Texture& texture, int x, int y, PieceColour colour, PieceType type);
     void handleEvent(sf::Event& event, sf::RenderWindow& window);
     void selectPiece(const sf::Vector2f& mousePos);
-    bool isValidMove(Piece &piece, sf::Vector2f targetPos);
+    bool isValidMove(Piece &piece, sf::Vector2i targetPos);
 
 private:
     int squareSize;
@@ -25,7 +25,7 @@ private:
     sf::Vector2f originalPosition;
     bool isDragging = false;
 
-    sf::Vector2f snapToSquare(const sf::Vector2f& position);
+    sf::Vector2i snapToSquare(const sf::Vector2f& position);
     bool isWithinBounds(const sf::Vector2f& position);
 
     bool highlightSquare = false;

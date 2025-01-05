@@ -28,16 +28,17 @@ public:
     void draw(sf::RenderWindow& window);    
     sf::Vector2f getPosition();
     sf::FloatRect getBounds();
-    void setPosition(sf::Vector2f position);
+    void setPosition(sf::Vector2i position);
     PieceColour getColour();
     PieceType getType() const;
     std::string getTypeAsString() const;
-
+    sf::Vector2i getBoardPosition();
 private:
     sf::Sprite sprite;
     PieceColour colour;
     PieceType type;
+    int x;
+    int y;
 };
-
 
 #endif // PIECE_H

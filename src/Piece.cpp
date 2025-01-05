@@ -4,7 +4,7 @@
 #include <vector>
 
 Piece::Piece(const sf::Texture& texture, int x, int y, int squareSize, PieceColour colour, PieceType type)
-    : colour(colour), type(type) {
+    : colour(colour), type(type), x(x), y(y) {
     sprite.setTexture(texture);
     float scale = 0.8f;
     sprite.setScale(scale, scale);
@@ -16,8 +16,10 @@ void Piece::draw(sf::RenderWindow& window) {
     window.draw(sprite);
 }
 
-void Piece::setPosition(sf::Vector2f position) {
+void Piece::setPosition(sf::Vector2i position) {
     sprite.setPosition(position.x, position.y);
+    x = position.x;
+    y = position.y;
 }
 
 sf::Vector2f Piece::getPosition() {
@@ -34,6 +36,10 @@ PieceColour Piece::getColour() {
 
 PieceType Piece::getType() const {
     return type;
+}
+
+sf::Vector2i Piece::getBoardPosition() {
+    return sf::Vector2i(x, y);
 }
 
 std::string Piece::getTypeAsString() const {
