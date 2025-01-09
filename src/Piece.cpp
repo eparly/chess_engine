@@ -22,15 +22,15 @@ void Piece::setPosition(sf::Vector2i position) {
     y = position.y;
 }
 
-sf::Vector2f Piece::getPosition() {
+sf::Vector2f Piece::getPosition() const {
     return sprite.getPosition();
 }
 
-sf::FloatRect Piece::getBounds() {
+sf::FloatRect Piece::getBounds() const {
     return sprite.getGlobalBounds();
 }
 
-PieceColour Piece::getColour() {
+PieceColour Piece::getColour() const {
     return colour;
 }
 
@@ -38,7 +38,7 @@ PieceType Piece::getType() const {
     return type;
 }
 
-sf::Vector2i Piece::getBoardPosition() {
+sf::Vector2i Piece::getBoardPosition() const {
     return sf::Vector2i(x, y);
 }
 

@@ -26,13 +26,13 @@ class Piece {
 public:
     Piece(const sf::Texture& texture, int x, int y, int squareSize, PieceColour colour, PieceType type);
     void draw(sf::RenderWindow& window);    
-    sf::Vector2f getPosition();
-    sf::FloatRect getBounds();
+    sf::Vector2f getPosition() const;
+    sf::FloatRect getBounds() const;
     void setPosition(sf::Vector2i position);
-    PieceColour getColour();
+    PieceColour getColour() const;
     PieceType getType() const;
     std::string getTypeAsString() const;
-    sf::Vector2i getBoardPosition();
+    sf::Vector2i getBoardPosition() const;
 private:
     sf::Sprite sprite;
     PieceColour colour;
