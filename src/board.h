@@ -63,6 +63,19 @@ private:
     bool isKingInCheck(PieceColour colour);
     bool isPositionAttacked(int col, int row, PieceColour colour);
     bool simulateMoveAndCheck(Piece& piece, sf::Vector2i targetPos);
+
+    //castling
+    bool whiteKingMoved = false;
+    bool whiteKingsideRookMoved = false;
+    bool whiteQueensideRookMoved = false;
+
+    bool blackKingMoved = false;
+    bool blackKingsideRookMoved = false;
+    bool blackQueensideRookMoved = false;
+
+    bool canCastleKingside(PieceColour colour);
+    bool canCastleQueenside(PieceColour colour);
+    void performCastling(Piece& king, sf::Vector2i targetPos);
 };
 
 #endif // BOARD_H
