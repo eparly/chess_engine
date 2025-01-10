@@ -59,6 +59,10 @@ private:
     bool isEmpty(int col, int row);
     bool isEnemyPiece(int col, int row, PieceColour colour);
     std::string moveToString(sf::Vector2i from, sf::Vector2i to);
+
+    bool isKingInCheck(PieceColour colour);
+    bool isPositionAttacked(int col, int row, PieceColour colour);
+    bool simulateMoveAndCheck(Piece& piece, sf::Vector2i targetPos);
 };
 
 #endif // BOARD_H

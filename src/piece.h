@@ -33,6 +33,9 @@ public:
     PieceType getType() const;
     std::string getTypeAsString() const;
     sf::Vector2i getBoardPosition() const;
+
+    bool operator==(const Piece &other) const;
+
 private:
     sf::Sprite sprite;
     PieceColour colour;

@@ -53,3 +53,9 @@ std::string Piece::getTypeAsString() const {
         default: return "Unknown";
     }
 }
+
+bool Piece::operator==(const Piece& other) const {
+    return sprite.getPosition() == other.getPosition() &&
+        colour == other.getColour() &&
+        type == other.getType();
+}
