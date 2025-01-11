@@ -25,7 +25,7 @@ private:
     std::vector<Piece> pieces;
 
     Piece* selectedPiece = nullptr;
-    sf::Vector2f originalPosition;
+    sf::Vector2i originalPosition;
     bool isDragging = false;
 
     sf::Vector2i snapToSquare(const sf::Vector2f& position);
