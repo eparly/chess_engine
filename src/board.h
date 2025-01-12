@@ -73,9 +73,17 @@ private:
     bool blackKingsideRookMoved = false;
     bool blackQueensideRookMoved = false;
 
+    //en passant
+    sf::Vector2i enPassantTarget = sf::Vector2i(-500, -500);   
+
     bool canCastleKingside(PieceColour colour);
     bool canCastleQueenside(PieceColour colour);
     void performCastling(Piece& king, sf::Vector2i targetPos);
+
+    bool isCheckmate(PieceColour colour);
+    bool gameOver = false;
+    std::string gameOverMessage;
+    sf::Vector2i checkmateKingPosition;
 };
 
 #endif // BOARD_H

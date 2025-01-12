@@ -85,9 +85,9 @@ std::vector<std::string> Board::generateLegalMoves() {
             for (const std::string& move : pieceMoves) {
                 sf::Vector2i from(move[0] - 'a', move[1] - '1');
                 sf::Vector2i to(move[2] - 'a', move[3] - '1');
-                std::cout << "Checking move: " << move << std::endl;
+                // std::cout << "Checking move: " << move << std::endl;
                 if (!simulateMoveAndCheck(piece, to)) {
-                    std::cout << "Adding move: " << move << std::endl;
+                    // std::cout << "Adding move: " << move << std::endl;
                     moves.push_back(move);
                 }
             }
@@ -117,9 +117,9 @@ bool Board::isKingInCheck(PieceColour colour) {
 }
 
 bool Board::isPositionAttacked(int col, int row, PieceColour colour) {
-    std::cout << "Checking for checks" << std::endl;
-    std::cout << "Position: " << col << ", " << row << std::endl;
-    std::cout << "=============" << std::endl;
+    // std::cout << "Checking for checks" << std::endl;
+    // std::cout << "Position: " << col << ", " << row << std::endl;
+    // std::cout << "=============" << std::endl;
     for (const Piece& piece : pieces) {
         if(piece.getColour() != colour) {
             std::vector<std::string> moves;
@@ -155,7 +155,7 @@ bool Board::isPositionAttacked(int col, int row, PieceColour colour) {
             for (const std::string & move : moves) {
                 sf::Vector2i to(move[2] - 'a', move[3] - '1');
                 if (to.x == col && to.y == row) {
-                    std::cout << "Position " << col << ", " << row << " is attacked by " << piece.getTypeAsString() << "at " << piece.getBoardPosition().x << "," << piece.getBoardPosition().y << std::endl;
+                    // std::cout << "Position " << col << ", " << row << " is attacked by " << piece.getTypeAsString() << "at " << piece.getBoardPosition().x << "," << piece.getBoardPosition().y << std::endl;
                     return true;
                 }
             }
@@ -175,7 +175,7 @@ bool Board::simulateMoveAndCheck(Piece& piece, sf::Vector2i targetPos) {
     // std::cout << "Original position: " << originalPos.x << ", " << originalPos.y << std::endl;
     for(Piece& p : pieces) {
         if (p.getBoardPosition().x / squareSize == targetPos.x && p.getBoardPosition().y / squareSize == targetPos.y) {
-            std::cout << "Capturing piece" << p.getTypeAsString() << std::endl;
+            // std::cout << "Capturing piece" << p.getTypeAsString() << std::endl;
             capturedPiece = &p;
             break;
         }
@@ -216,15 +216,25 @@ std::vector<std::string> Board::generatePawnMoves(const Piece& piece) {
 
     // Capture diagonally left
     if (isValidPosition(col - 1, row + direction) && isEnemyPiece(col - 1, row + direction, piece.getColour())) {
-        std::cout << "Capture left" << std::endl;
-        std::cout << moveToString(piecePosition / squareSize, sf::Vector2i(col - 1, row + direction)) << std::endl;
+        // std::cout << "Capture left" << std::endl;
+        // std::cout << moveToString(piecePosition / squareSize, sf::Vector2i(col - 1, row + direction)) << std::endl;
         moves.push_back(moveToString(piecePosition / squareSize, sf::Vector2i(col - 1, row + direction)));
     }
 
     // Capture diagonally right
     if (isValidPosition(col + 1, row + direction) && isEnemyPiece(col + 1, row + direction, piece.getColour())) {
-        std::cout << "Capture right" << std::endl;
+        // std::cout << "Capture right" << std::endl;
         moves.push_back(moveToString(piecePosition / squareSize, sf::Vector2i(col + 1, row + direction)));
+    }
+
+    // En passant capture
+    if (isValidPosition(col + 1, row + direction) && sf::Vector2i(col + 1, row + direction) == enPassantTarget) {
+        std::cout << "En passant capture" << std::endl;
+        moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(col + 1, row + direction)));
+    }
+    if (isValidPosition(col - 1, row + direction) && sf::Vector2i(col - 1, row + direction) == enPassantTarget) {
+        std::cout << "En passant capture" << std::endl;
+        moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(col - 1, row + direction)));
     }
     // std::cout << "Pawn moves" << std::endl;
     // for(auto move : moves){
@@ -402,25 +412,25 @@ std::vector<std::string> Board::generateKingMoves(const Piece& piece) {
     //castling
     // std::cout << "Checking for castling" << std::endl;
     if(piece.getColour() == PieceColour::White) {
-        std::cout << "Checking kingside castling white" << std::endl;
+        // std::cout << "Checking kingside castling white" << std::endl;
         if(canCastleKingside(PieceColour::White)){
-            std::cout << "White can castle kingside" << std::endl;
+            // std::cout << "White can castle kingside" << std::endl;
             moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(1, 0)));
         }
-        std::cout << "Checking queenside castling white" << std::endl;
+        // std::cout << "Checking queenside castling white" << std::endl;
         if(canCastleQueenside(PieceColour::White)){
-            std::cout << "White can castle queenside" << std::endl;
+            // std::cout << "White can castle queenside" << std::endl;
             moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(5, 0)));
         }
     } else {
-        std::cout << "Checking kingside castling black" << std::endl;
+        // std::cout << "Checking kingside castling black" << std::endl;
         if(canCastleKingside(PieceColour::Black)){
-            std::cout << "Black can castle kingside" << std::endl;
+            // std::cout << "Black can castle kingside" << std::endl;
             moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(1, 7)));
         }
-        std::cout << "Checking queenside castling black" << std::endl;
+        // std::cout << "Checking queenside castling black" << std::endl;
         if(canCastleQueenside(PieceColour::Black)){
-            std::cout << "Black can castle queenside" << std::endl;
+            // std::cout << "Black can castle queenside" << std::endl;
             moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(5, 7)));
         }
     }
@@ -429,20 +439,20 @@ std::vector<std::string> Board::generateKingMoves(const Piece& piece) {
 
 bool Board::canCastleKingside(PieceColour colour) {
     if (colour == PieceColour::White) {
-        std::cout << "Checking white" << std::endl;
-        std::cout << "White king moved: " << whiteKingMoved << std::endl;
-        std::cout << "White kingside rook moved: " << whiteKingsideRookMoved << std::endl;
+        // std::cout << "Checking white" << std::endl;
+        // std::cout << "White king moved: " << whiteKingMoved << std::endl;
+        // std::cout << "White kingside rook moved: " << whiteKingsideRookMoved << std::endl;
         if(whiteKingMoved || whiteKingsideRookMoved){
-            std::cout << "White king or kingside rook has moved" << std::endl;
+            // std::cout << "White king or kingside rook has moved" << std::endl;
             return false;
         }
-        std::cout << "Checking if squares are empty" << std::endl;
-        std::cout << "Square 1: " << isEmpty(1, 0) << std::endl;
-        std::cout << "Square 2: " << isEmpty(2, 0) << std::endl;
+        // std::cout << "Checking if squares are empty" << std::endl;
+        // std::cout << "Square 1: " << isEmpty(1, 0) << std::endl;
+        // std::cout << "Square 2: " << isEmpty(2, 0) << std::endl;
         if(!isEmpty(1, 0) || !isEmpty(2, 0)) return false;
-        std::cout << "Checking if squares are attacked" << std::endl;
-        std::cout << "Square 1: " << isPositionAttacked(1, 0, PieceColour::White) << std::endl;
-        std::cout << "Square 2: " << isPositionAttacked(2, 0, PieceColour::White) << std::endl;
+        // std::cout << "Checking if squares are attacked" << std::endl;
+        // std::cout << "Square 1: " << isPositionAttacked(1, 0, PieceColour::White) << std::endl;
+        // std::cout << "Square 2: " << isPositionAttacked(2, 0, PieceColour::White) << std::endl;
         if (isPositionAttacked(1, 0, PieceColour::White) || isPositionAttacked(2, 0, PieceColour::White)) return false;
     } else {
         if(blackKingMoved || blackKingsideRookMoved) return false;
@@ -454,20 +464,20 @@ bool Board::canCastleKingside(PieceColour colour) {
 
 bool Board::canCastleQueenside(PieceColour colour) {
     if (colour == PieceColour::White) {
-        std::cout << "Checking white" << std::endl;
-        std::cout << "White king moved: " << whiteKingMoved << std::endl;
-        std::cout << "White queenside rook moved: " << whiteQueensideRookMoved << std::endl;
+        // std::cout << "Checking white" << std::endl;
+        // std::cout << "White king moved: " << whiteKingMoved << std::endl;
+        // std::cout << "White queenside rook moved: " << whiteQueensideRookMoved << std::endl;
         if (whiteKingMoved || whiteQueensideRookMoved) return false;
 
-        std::cout << "Checking if squares are empty" << std::endl;
-        std::cout << "Square 1: " << isEmpty(4, 0) << std::endl;
-        std::cout << "Square 2: " << isEmpty(5, 0) << std::endl;
-        std::cout << "Square 3: " << isEmpty(6, 0) << std::endl;
+        // std::cout << "Checking if squares are empty" << std::endl;
+        // std::cout << "Square 1: " << isEmpty(4, 0) << std::endl;
+        // std::cout << "Square 2: " << isEmpty(5, 0) << std::endl;
+        // std::cout << "Square 3: " << isEmpty(6, 0) << std::endl;
         if (!isEmpty(4, 0) || !isEmpty(5, 0) || !isEmpty(6, 0)) return false;
-        std::cout << "Checking if squares are attacked" << std::endl;
-        std::cout << "Square 1: " << isPositionAttacked(4, 0, PieceColour::White) << std::endl;
-        std::cout << "Square 2: " << isPositionAttacked(3, 0, PieceColour::Black) << std::endl;
-        std::cout << "Square 3: " << isPositionAttacked(2, 0, PieceColour::Black) << std::endl;
+        // std::cout << "Checking if squares are attacked" << std::endl;
+        // std::cout << "Square 1: " << isPositionAttacked(4, 0, PieceColour::White) << std::endl;
+        // std::cout << "Square 2: " << isPositionAttacked(3, 0, PieceColour::Black) << std::endl;
+        // std::cout << "Square 3: " << isPositionAttacked(2, 0, PieceColour::Black) << std::endl;
         if (isPositionAttacked(4, 0, PieceColour::White) || isPositionAttacked(5, 0, PieceColour::White) || isPositionAttacked(6, 0, PieceColour::White)) return false;
     } else {
         if (blackKingMoved || blackQueensideRookMoved) return false;
@@ -486,8 +496,8 @@ void Board::performCastling(Piece& king, sf::Vector2i targetPos) {
                     piece.getColour() == PieceColour::White //&&
                     // piece.getBoardPosition() == sf::Vector2i(0 * squareSize, 0)
                 ) {
-                    std::cout << "Performing castling" << std::endl;
-                    std::cout << "Rook position: " << piece.getBoardPosition().x << ", " << piece.getBoardPosition().y << std::endl;
+                    // std::cout << "Performing castling" << std::endl;
+                    // std::cout << "Rook position: " << piece.getBoardPosition().x << ", " << piece.getBoardPosition().y << std::endl;
                     if(piece.getBoardPosition() / squareSize == sf::Vector2i(0 * squareSize, 0)){
                         sf::Vector2i newPos = sf::Vector2i(2 * squareSize, 0);
                         piece.setPosition(newPos);
@@ -572,7 +582,7 @@ std::string Board::moveToString(sf::Vector2i from, sf::Vector2i to) {
 
 bool Board::isLegalMove(const std::string &move) {
     bool isLegal = legalMoves.find(move) != legalMoves.end();
-    std::cout << "Is legal move: " << isLegal << std::endl;
+    // std::cout << "Is legal move: " << isLegal << std::endl;
     return isLegal;
 }
 
@@ -591,6 +601,13 @@ void Board::draw(sf::RenderWindow& window) {
         square.setPosition(highlightedX * squareSize, highlightedY * squareSize);
         square.setFillColor(sf::Color(0, 255, 0, 128));
         window.draw(square);
+    }
+
+    if(gameOver) {
+        sf::RectangleShape highlight(sf::Vector2f(squareSize, squareSize));
+        highlight.setPosition(checkmateKingPosition.x * squareSize, checkmateKingPosition.y * squareSize);
+        highlight.setFillColor(sf::Color(255, 0, 0, 128));
+        window.draw(highlight);
     }
 
     for (auto& piece : pieces) {
@@ -641,9 +658,40 @@ void Board::handleEvent(sf::Event& event, sf::RenderWindow& window) {
                     if (selectedPiece->getType() == PieceType::King && (targetPos / squareSize == sf::Vector2i(1, 0) || targetPos / squareSize == sf::Vector2i(5, 0) || targetPos / squareSize == sf::Vector2i(1, 7) || targetPos / squareSize == sf::Vector2i(5, 7))) {
                         std::cout << "Performing castling" << std::endl;
                         performCastling(*selectedPiece, targetPos / squareSize);
+                    } else {
+                        std::cout << "checking en passant" << std::endl;
+                        std::cout << "targetPos: " << targetPos.x / squareSize << ", " << targetPos.y / squareSize << std::endl;
+                        std::cout << "enPassantTarget: " << enPassantTarget.x << ", " << enPassantTarget.y << std::endl;
+                        if(selectedPiece->getType() == PieceType::Pawn && targetPos / squareSize == enPassantTarget) {
+                            std::cout << "En passant found" << std::endl;
+                            int captureRow = isWhiteTurn ? targetPos.y / squareSize - 1 : targetPos.y / squareSize + 1;
+                            std::cout << "Capture row: " << captureRow << std::endl;
+                            std::cout << "move: " << move << std::endl;
+                            for (auto it = pieces.begin(); it != pieces.end(); ++it) {
+                                if(it->getBoardPosition().x / squareSize == targetPos.x / squareSize && it->getPosition().y / squareSize == captureRow) {
+                                    pieces.erase(it);
+                                    break;
+                                }
+                            }
+                            // selectedPiece->setPosition(targetPos);
+                            
+                        }
                     }
                     // Check if there is a piece at the target position
                     selectedPiece->setPosition(targetPos);
+                    // Set en passant target
+                    std::cout << "Checking en passant" << std::endl;
+                    std::cout << abs(targetPos.y / squareSize - originalPosition.y / squareSize) << std::endl;
+                    if (selectedPiece->getType() == PieceType::Pawn && abs(targetPos.y / squareSize - originalPosition.y / squareSize) == 2)
+                    {
+                        std::cout << "Setting en passant target" << std::endl;
+                        std::cout << "Target position: " << targetPos.x << ", " << targetPos.y << std::endl;
+                        enPassantTarget = sf::Vector2i(targetPos.x / squareSize, (targetPos.y / squareSize + originalPosition.y / squareSize) / 2);
+                    }
+                    else
+                    {
+                        enPassantTarget = sf::Vector2i(-500, -500);
+                    }
                     std::cout << "Moving piece" << selectedPiece->getTypeAsString() << std::endl;
                     std::cout << "Target position: " << targetPos.x << ", " << targetPos.y << std::endl;
                     std::cout << "Original position: " << originalPosition.x << ", " << originalPosition.y << std::endl;
@@ -675,8 +723,8 @@ void Board::handleEvent(sf::Event& event, sf::RenderWindow& window) {
                                 whiteKingsideRookMoved = true;
                             }
                         } else {
-                            std::cout << "Black rook moved" << std::endl;
-                            std::cout << "Original position: " << originalPosition.x << ", " << originalPosition.y << std::endl;
+                            // std::cout << "Black rook moved" << std::endl;
+                            // std::cout << "Original position: " << originalPosition.x << ", " << originalPosition.y << std::endl;
                             if (originalPosition / squareSize == sf::Vector2i(7, 7)) {
                                 blackQueensideRookMoved = true;
                             } else if (originalPosition / squareSize == sf::Vector2i(0, 7)) {
@@ -684,10 +732,19 @@ void Board::handleEvent(sf::Event& event, sf::RenderWindow& window) {
                             }
                         }
                     }
-
+                    if (isCheckmate(isWhiteTurn ? PieceColour::Black : PieceColour::White)) {
+                        gameOver = true;
+                        gameOverMessage = (isWhiteTurn ? "White" : "Black") + std::string(" wins by checkmate!");
+                        // Store the position of the king in checkmate
+                        for (Piece& piece : pieces) {
+                            if (piece.getType() == PieceType::King && piece.getColour() == (isWhiteTurn ? PieceColour::Black : PieceColour::White)) {
+                                checkmateKingPosition = sf::Vector2i(piece.getPosition().x / squareSize, piece.getPosition().y / squareSize);
+                                break;
+                            }
+                        }
+                        std::cout << gameOverMessage << std::endl;
+                    }
                     endTurn();
-                    
-                    
                 }
                 // Unselect the piece
                 selectedPiece = nullptr;
@@ -714,8 +771,8 @@ bool Board::isValidMove(Piece& piece, sf::Vector2i position) {
     //check if the  spot is occupied by a piece of the same colour
     for(auto& p : pieces){
         sf::Vector2i piecePosition = p.getBoardPosition();
-        std::cout << "Piece position: " << piecePosition.x << ", " << piecePosition.y << std::endl;
-        std::cout << "Position: " << position.x << ", " << position.y << std::endl;
+        // std::cout << "Piece position: " << piecePosition.x << ", " << piecePosition.y << std::endl;
+        // std::cout << "Position: " << position.x << ", " << position.y << std::endl;
         if(position == piecePosition && p.getColour() == piece.getColour()){
             std::cout << "Invalid move: spot is occupied by a piece of the same colour" << std::endl;
             return false;
@@ -731,9 +788,9 @@ void Board::endTurn() {
     isWhiteTurn = !isWhiteTurn;
     std::vector<std::string> moves = generateLegalMoves();
     legalMoves = std::unordered_set<std::string>(moves.begin(), moves.end());
-    for(auto& move : legalMoves){
-        std::cout << move << std::endl;
-    }
+    // for(auto& move : legalMoves){
+    //     std::cout << move << std::endl;
+    // }
 }
 
 void Board::capturePiece(Piece& piece) {
@@ -744,4 +801,46 @@ void Board::capturePiece(Piece& piece) {
             break;
         }
     }
+}
+
+bool Board::isCheckmate(PieceColour colour) {
+    std::cout << "Checking for checkmate" << std::endl;
+    std::cout << "colour: " << (colour==PieceColour::White? "white" : "black") << std::endl;
+    if(!isKingInCheck(colour)) return false;
+    std::cout << "the King is in check" << std::endl;
+    std::vector<std::string> moves = generateLegalMoves();
+
+    for (const std::string& move : moves) {
+        sf::Vector2i from(move[0] - 'a', move[1] - '1');
+        sf::Vector2i to(move[2] - 'a', move[3] - '1');
+        std::cout << "Checking Move: " << move << std::endl;
+        Piece* piece = nullptr;
+        for (Piece& p : pieces) {
+            if (p.getBoardPosition() / squareSize == from && p.getColour() == colour) {
+                piece = &p;
+                break;
+            }
+        }
+
+
+        // Simulate the move and check if it removes the check
+        if (piece) {
+            // Temporarily move the piece
+            sf::Vector2i originalPos = sf::Vector2i(piece->getPosition().x / squareSize, piece->getPosition().y / squareSize);
+            piece->setPosition(to*squareSize);
+
+            // Check if the king is still in check
+            bool stillInCheck = isKingInCheck(colour);
+
+            // Restore the original position
+            piece->setPosition(originalPos);
+
+            if (!stillInCheck) {
+                std::cout << "Found a move that removes the check: " << move << std::endl;
+                return false; // There is a move that removes the check
+            }
+        }
+    }
+
+    return true;
 }
