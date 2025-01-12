@@ -182,7 +182,7 @@ bool Board::simulateMoveAndCheck(Piece& piece, sf::Vector2i targetPos) {
     }
     piece.setPosition(targetPos * squareSize);
     if(capturedPiece) {
-        capturedPiece->setPosition(sf::Vector2i(-100, -100));
+        capturedPiece->setPosition(sf::Vector2i(-1000, -1000));
         capturedPieceWasRemoved = true;
         // pieces.erase(std::remove(pieces.begin(), pieces.end(), *capturedPiece), pieces.end());
     }
@@ -216,14 +216,14 @@ std::vector<std::string> Board::generatePawnMoves(const Piece& piece) {
 
     // Capture diagonally left
     if (isValidPosition(col - 1, row + direction) && isEnemyPiece(col - 1, row + direction, piece.getColour())) {
-        // std::cout << "Capture left" << std::endl;
-        // std::cout << moveToString(piecePosition / squareSize, sf::Vector2i(col - 1, row + direction)) << std::endl;
+        std::cout << "Capture left" << std::endl;
+        std::cout << moveToString(piecePosition / squareSize, sf::Vector2i(col - 1, row + direction)) << std::endl;
         moves.push_back(moveToString(piecePosition / squareSize, sf::Vector2i(col - 1, row + direction)));
     }
 
     // Capture diagonally right
     if (isValidPosition(col + 1, row + direction) && isEnemyPiece(col + 1, row + direction, piece.getColour())) {
-        // std::cout << "Capture right" << std::endl;
+        std::cout << "Capture right" << std::endl;
         moves.push_back(moveToString(piecePosition / squareSize, sf::Vector2i(col + 1, row + direction)));
     }
 
