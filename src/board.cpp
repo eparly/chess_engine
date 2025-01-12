@@ -229,11 +229,15 @@ std::vector<std::string> Board::generatePawnMoves(const Piece& piece) {
 
     // En passant capture
     if (isValidPosition(col + 1, row + direction) && sf::Vector2i(col + 1, row + direction) == enPassantTarget) {
-        std::cout << "En passant capture" << std::endl;
+        std::cout << "En passant capture right" << std::endl;
+        std::cout << "col: " << col << " row: " << row << std::endl;
+        std::cout << "enPassantTarget: " << enPassantTarget.x << ", " << enPassantTarget.y << std::endl;
+        std::cout << moveToString(sf::Vector2i(col, row), sf::Vector2i(col + 1, row + direction)) << std::endl;
         moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(col + 1, row + direction)));
     }
     if (isValidPosition(col - 1, row + direction) && sf::Vector2i(col - 1, row + direction) == enPassantTarget) {
-        std::cout << "En passant capture" << std::endl;
+        std::cout << "En passant capture left" << std::endl;
+        std::cout << moveToString(sf::Vector2i(col, row), sf::Vector2i(col - 1, row + direction)) << std::endl;
         moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(col - 1, row + direction)));
     }
     // std::cout << "Pawn moves" << std::endl;
@@ -651,6 +655,8 @@ void Board::handleEvent(sf::Event& event, sf::RenderWindow& window) {
             } else {
                 // Move the selected piece to the new position
                 sf::Vector2i targetPos = snapToSquare(mousePos);
+                sf::Vector2i originalPos = sf::Vector2i(selectedPiece->getBoardPosition().x / squareSize, selectedPiece->getBoardPosition().y / squareSize);
+
                 std::string move = moveToString(sf::Vector2i(selectedPiece->getBoardPosition().x / squareSize, selectedPiece->getBoardPosition().y / squareSize), targetPos / squareSize);
                 std::cout << "Move: " << move << std::endl;
                 if (isLegalMove(move) && isWhiteTurn == (selectedPiece->getColour() == PieceColour::White)) {
@@ -667,14 +673,38 @@ void Board::handleEvent(sf::Event& event, sf::RenderWindow& window) {
                             int captureRow = isWhiteTurn ? targetPos.y / squareSize - 1 : targetPos.y / squareSize + 1;
                             std::cout << "Capture row: " << captureRow << std::endl;
                             std::cout << "move: " << move << std::endl;
+                            std::cout << "Selected piece position 1: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
                             for (auto it = pieces.begin(); it != pieces.end(); ++it) {
                                 if(it->getBoardPosition().x / squareSize == targetPos.x / squareSize && it->getPosition().y / squareSize == captureRow) {
+                                    std::cout << "Capturing piece at: " << it->getPosition().x << ", " << it->getPosition().y << std::endl;
+                                    std::cout << "Selected piece position 3: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
+
+                                    // Store the index of the selected piece
+                                    int selectedIndex = std::distance(pieces.begin(), std::find(pieces.begin(), pieces.end(), *selectedPiece));
+                                    std::cout << "Selected piece index: " << selectedIndex << std::endl;
+                                    std::cout << "size1: " << pieces.size() << std::endl;
                                     pieces.erase(it);
+                                    std::cout << "size2: " << pieces.size() << std::endl;
+
+
+                                    // Restore the selected piece pointer
+                                    //This is super janky but for some reason it works
+                                    //Do not touch as long as everything is working!!
+                                    if(selectedPiece->getColour() == PieceColour::White) {
+                                        selectedPiece = &pieces[selectedIndex-1];
+                                    }
+                                    else {
+                                        selectedPiece = &pieces[selectedIndex];
+                                    }
+                                    std::cout << "Selected piece position 4: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
+
                                     break;
                                 }
                             }
-                            // selectedPiece->setPosition(targetPos);
-                            
+                            std::cout << "Selected piece position 2: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
+
+                            std::cout << "Piece captured" << std::endl;
+                            selectedPiece->setPosition(targetPos);
                         }
                     }
                     // Check if there is a piece at the target position
@@ -794,13 +824,26 @@ void Board::endTurn() {
 }
 
 void Board::capturePiece(Piece& piece) {
+    // auto it = std::find_if(pieces.begin(), pieces.end(), [&piece](const Piece& p) {
+    //     return &p == &piece;
+    // });
+
+    // if (it != pieces.end()) {
+    //     pieces.erase(it);
+    // }
+
     for (auto it = pieces.begin(); it != pieces.end(); ++it) {
         if(it->getPosition() == piece.getPosition() && it->getColour() == piece.getColour()) {
             std::cout << "Capturing piece" << it->getTypeAsString() << std::endl;
+            std::cout << "Selected piece position 3: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
+
             pieces.erase(it);
+            std::cout << "Selected piece position 4: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
+
             break;
         }
     }
+
 }
 
 bool Board::isCheckmate(PieceColour colour) {
