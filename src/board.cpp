@@ -661,7 +661,13 @@ void Board::handleEvent(sf::Event& event, sf::RenderWindow& window) {
                 std::cout << "Move: " << move << std::endl;
                 if (isLegalMove(move) && isWhiteTurn == (selectedPiece->getColour() == PieceColour::White)) {
                     std::cout << "targetPos: " << targetPos.x << ", " << targetPos.y << std::endl;
-                    if (selectedPiece->getType() == PieceType::King && (targetPos / squareSize == sf::Vector2i(1, 0) || targetPos / squareSize == sf::Vector2i(5, 0) || targetPos / squareSize == sf::Vector2i(1, 7) || targetPos / squareSize == sf::Vector2i(5, 7))) {
+                    if (selectedPiece->getType() == PieceType::King && 
+                            (targetPos / squareSize == sf::Vector2i(1, 0) && canCastleKingside(PieceColour::White) || 
+                            targetPos / squareSize == sf::Vector2i(5, 0) && canCastleQueenside(PieceColour::White) || 
+                            targetPos / squareSize == sf::Vector2i(1, 7) && canCastleKingside(PieceColour::Black) || 
+                            targetPos / squareSize == sf::Vector2i(5, 7) && canCastleQueenside(PieceColour::Black)
+                            )
+                        ){
                         std::cout << "Performing castling" << std::endl;
                         performCastling(*selectedPiece, targetPos / squareSize);
                     } else {
