@@ -7,6 +7,8 @@ Development of a chess engine has started and will be available soon.
 ## Dependencies
 
 - [SFML](https://www.sfml-dev.org/download.php) (Simple and Fast Multimedia Library)
+- Ubuntu 24.04 (or any other Linux distribution)
+
 
 ## Installation
 
@@ -42,6 +44,8 @@ Development of a chess engine has started and will be available soon.
     - Left-click on a valid destination square to move the selected piece.
 
 4. The game will alternate turns between white and black pieces.
+
+![Screenshot](images/Picture1.png)
 
 ## Key Classes and Functions
 
