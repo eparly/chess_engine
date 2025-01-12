@@ -3,6 +3,16 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 
+// Define static texture members
+sf::Texture Piece::whiteQueenTexture;
+sf::Texture Piece::whiteRookTexture;
+sf::Texture Piece::whiteBishopTexture;
+sf::Texture Piece::whiteKnightTexture;
+sf::Texture Piece::blackQueenTexture;
+sf::Texture Piece::blackRookTexture;
+sf::Texture Piece::blackBishopTexture;
+sf::Texture Piece::blackKnightTexture;
+
 Piece::Piece(const sf::Texture& texture, int x, int y, int squareSize, PieceColour colour, PieceType type)
     : colour(colour), type(type), x(x), y(y) {
     sprite.setTexture(texture);
@@ -10,6 +20,23 @@ Piece::Piece(const sf::Texture& texture, int x, int y, int squareSize, PieceColo
     sprite.setScale(scale, scale);
     sprite.setPosition(x + squareSize / 2 - sprite.getGlobalBounds().width / 2,
                        y + squareSize / 2 - sprite.getGlobalBounds().height / 2);
+    loadTextures();
+}
+
+void Piece::loadTextures() {
+    static bool texturesLoaded = false;
+    if(!texturesLoaded) {
+        whiteRookTexture.loadFromFile("images/white-rook.png");
+        whiteKnightTexture.loadFromFile("images/white-knight.png");
+        whiteBishopTexture.loadFromFile("images/white-bishop.png");
+        whiteQueenTexture.loadFromFile("images/white-queen.png");
+
+        blackRookTexture.loadFromFile("images/black-rook.png");
+        blackKnightTexture.loadFromFile("images/black-knight.png");
+        blackBishopTexture.loadFromFile("images/black-bishop.png");
+        blackQueenTexture.loadFromFile("images/black-queen.png");
+        texturesLoaded = true;
+    }
 }
 
 void Piece::draw(sf::RenderWindow& window) {
@@ -52,6 +79,29 @@ std::string Piece::getTypeAsString() const {
         case PieceType::Pawn: return "Pawn";
         default: return "Unknown";
     }
+}
+
+void Piece::setType(PieceType newType) {
+    type = newType;
+    // Update the texture based on the new type
+    switch (newType) {
+        case PieceType::Queen:
+            sprite.setTexture(colour == PieceColour::White ? whiteQueenTexture : blackQueenTexture);
+            break;
+        case PieceType::Rook:
+            sprite.setTexture(colour == PieceColour::White ? whiteRookTexture : blackRookTexture);
+            break;
+        case PieceType::Bishop:
+            sprite.setTexture(colour == PieceColour::White ? whiteBishopTexture : blackBishopTexture);
+            break;
+        case PieceType::Knight:
+            sprite.setTexture(colour == PieceColour::White ? whiteKnightTexture : blackKnightTexture);
+            break;
+        default:
+            break;
+    }
+    // Adjust the sprite scale to fit the new texture
+    sprite.setScale(static_cast<float>(sprite.getGlobalBounds().width) / sprite.getTexture()->getSize().x, static_cast<float>(sprite.getGlobalBounds().height) / sprite.getTexture()->getSize().y);
 }
 
 bool Piece::operator==(const Piece& other) const {

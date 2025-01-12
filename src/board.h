@@ -86,4 +86,6 @@ private:
     sf::Vector2i checkmateKingPosition;
 };
 
+PieceType showPromotionWindow(sf::RenderWindow& window, PieceColour colour);
+
 #endif // BOARD_H

@@ -34,6 +34,8 @@ public:
     std::string getTypeAsString() const;
     sf::Vector2i getBoardPosition() const;
 
+    void setType(PieceType newType);
+
     bool operator==(const Piece &other) const;
 
 private:
@@ -42,6 +44,11 @@ private:
     PieceType type;
     int x;
     int y;
+
+    static sf::Texture whiteRookTexture, whiteKnightTexture, whiteBishopTexture, whiteQueenTexture;
+    static sf::Texture blackRookTexture, blackKnightTexture, blackBishopTexture, blackQueenTexture;
+
+    static void loadTextures();
 };
 
 #endif // PIECE_H

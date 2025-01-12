@@ -715,6 +715,17 @@ void Board::handleEvent(sf::Event& event, sf::RenderWindow& window) {
                     }
                     // Check if there is a piece at the target position
                     selectedPiece->setPosition(targetPos);
+
+                    //handle pawn promotion
+                    std::cout << "Checking pawn promotion" << std::endl;
+                    std::cout << "Selected piece type: " << selectedPiece->getTypeAsString() << std::endl;
+                    std::cout << "Target position: " << targetPos.x << ", " << targetPos.y << std::endl;
+                    if(selectedPiece->getType() == PieceType::Pawn && (targetPos.y / squareSize == 0 || targetPos.y / squareSize == 7)) {
+                        std::cout << "Promoting pawn" << std::endl;
+                        PieceType promotionType = showPromotionWindow(window, selectedPiece->getColour());
+                        selectedPiece->setType(promotionType);
+                    }
+
                     // Set en passant target
                     std::cout << "Checking en passant" << std::endl;
                     std::cout << abs(targetPos.y / squareSize - originalPosition.y / squareSize) << std::endl;
@@ -892,4 +903,75 @@ bool Board::isCheckmate(PieceColour colour) {
     }
 
     return true;
+}
+
+PieceType showPromotionWindow(sf::RenderWindow& window, PieceColour colour) {
+    std::cout << "Showing promotion window" << std::endl;
+    sf::RenderWindow promotionWindow(sf::VideoMode(400, 100), "Pawn Promotion");
+    // Load textures for promotion options
+    sf::Texture queenTexture, rookTexture, bishopTexture, knightTexture;
+    if (colour == PieceColour::White) {
+        queenTexture.loadFromFile("images/white-queen.png");
+        rookTexture.loadFromFile("images/white-rook.png");
+        bishopTexture.loadFromFile("images/white-bishop.png");
+        knightTexture.loadFromFile("images/white-knight.png");
+    } else {
+        queenTexture.loadFromFile("images/black-queen.png");
+        rookTexture.loadFromFile("images/black-rook.png");
+        bishopTexture.loadFromFile("images/black-bishop.png");
+        knightTexture.loadFromFile("images/black-knight.png");
+    }
+
+    // Create sprites for promotion options
+    sf::Sprite queenSprite(queenTexture);
+    sf::Sprite rookSprite(rookTexture);
+    sf::Sprite bishopSprite(bishopTexture);
+    sf::Sprite knightSprite(knightTexture);
+
+    // Set positions for the sprites
+    queenSprite.setPosition(50, 25);
+    rookSprite.setPosition(150, 25);
+    bishopSprite.setPosition(250, 25);
+    knightSprite.setPosition(350, 25);
+
+    while (promotionWindow.isOpen()) {
+        sf::Event event;
+        while (promotionWindow.pollEvent(event)) {
+            if (event.type == sf::Event::Closed) {
+                promotionWindow.close();
+            } else if (event.type == sf::Event::MouseButtonPressed) {
+                std::cout << "Mouse pressed" << std::endl;
+                if (event.mouseButton.button == sf::Mouse::Left) {
+                    sf::Vector2i mousePos = sf::Mouse::getPosition(promotionWindow);
+                    std::cout << "Mouse position: " << mousePos.x << ", " << mousePos.y << std::endl;
+                    std::cout << "Queen bounds: " << queenSprite.getGlobalBounds().left << ", " << queenSprite.getGlobalBounds().top << ", " << queenSprite.getGlobalBounds().width << ", " << queenSprite.getGlobalBounds().height << std::endl;
+                    std::cout << "Rook bounds: " << rookSprite.getGlobalBounds().left << ", " << rookSprite.getGlobalBounds().top << ", " << rookSprite.getGlobalBounds().width << ", " << rookSprite.getGlobalBounds().height << std::endl;
+                    std::cout << "Bishop bounds: " << bishopSprite.getGlobalBounds().left << ", " << bishopSprite.getGlobalBounds().top << ", " << bishopSprite.getGlobalBounds().width << ", " << bishopSprite.getGlobalBounds().height << std::endl;
+                    std::cout << "Knight bounds: " << knightSprite.getGlobalBounds().left << ", " << knightSprite.getGlobalBounds().top << ", " << knightSprite.getGlobalBounds().width << ", " << knightSprite.getGlobalBounds().height << std::endl;
+                    if (queenSprite.getGlobalBounds().contains(mousePos.x, mousePos.y)) {
+                        promotionWindow.close();
+                        return PieceType::Queen;
+                    } else if (rookSprite.getGlobalBounds().contains(mousePos.x, mousePos.y)) {
+                        promotionWindow.close();
+                        return PieceType::Rook;
+                    } else if (bishopSprite.getGlobalBounds().contains(mousePos.x, mousePos.y)) {
+                        promotionWindow.close();
+                        return PieceType::Bishop;
+                    } else if (knightSprite.getGlobalBounds().contains(mousePos.x, mousePos.y)) {
+                        promotionWindow.close();
+                        return PieceType::Knight;
+                    }
+                }
+            }
+        }
+
+        promotionWindow.clear();
+        promotionWindow.draw(queenSprite);
+        promotionWindow.draw(rookSprite);
+        promotionWindow.draw(bishopSprite);
+        promotionWindow.draw(knightSprite);
+        promotionWindow.display();
+    }
+
+    return PieceType::Queen; // Default promotion to Queen if window is closed
 }
