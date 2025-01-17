@@ -8,10 +8,51 @@ sf::Texture Piece::whiteQueenTexture;
 sf::Texture Piece::whiteRookTexture;
 sf::Texture Piece::whiteBishopTexture;
 sf::Texture Piece::whiteKnightTexture;
+sf::Texture Piece::whitePawnTexture;
+sf::Texture Piece::whiteKingTexture;
+
 sf::Texture Piece::blackQueenTexture;
 sf::Texture Piece::blackRookTexture;
 sf::Texture Piece::blackBishopTexture;
 sf::Texture Piece::blackKnightTexture;
+sf::Texture Piece::blackPawnTexture;
+sf::Texture Piece::blackKingTexture;
+
+Piece::Piece() : type(PieceType::None), colour(PieceColour::None){}
+
+
+Piece::Piece(PieceType type, PieceColour colour, int x, int y)
+    : type(type), colour(colour) {
+    // Load textures for promoted pieces
+    loadTextures();
+
+    // Set the texture based on the piece type and colour
+    switch (type) {
+        case PieceType::Queen:
+            sprite.setTexture(colour == PieceColour::White ? whiteQueenTexture : blackQueenTexture);
+            break;
+        case PieceType::Rook:
+            sprite.setTexture(colour == PieceColour::White ? whiteRookTexture : blackRookTexture);
+            break;
+        case PieceType::Bishop:
+            sprite.setTexture(colour == PieceColour::White ? whiteBishopTexture : blackBishopTexture);
+            break;
+        case PieceType::Knight:
+            sprite.setTexture(colour == PieceColour::White ? whiteKnightTexture : blackKnightTexture);
+            break;
+        case PieceType::Pawn:
+            sprite.setTexture(colour == PieceColour::White ? whitePawnTexture : blackPawnTexture);
+            break;
+        case PieceType::King:
+            sprite.setTexture(colour == PieceColour::White ? whiteKingTexture : blackKingTexture);
+            break;
+        default:
+            break;
+    }
+
+    sprite.setPosition(x * 100, y * 100); // Adjust the position based on your board size
+    sprite.setScale(1.0f, 1.0f); // Adjust the scale based on your texture size
+}
 
 Piece::Piece(const sf::Texture& texture, int x, int y, int squareSize, PieceColour colour, PieceType type)
     : colour(colour), type(type), x(x), y(y) {
