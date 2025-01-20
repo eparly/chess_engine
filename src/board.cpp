@@ -1,5 +1,6 @@
 #include "board.h"
 #include "piece.h"
+#include "move.h"
 #include <SFML/Graphics.hpp>
 #include <cmath>
 #include <iostream>
@@ -28,8 +29,8 @@ void Board::initializeBoard() {
     // Initialize the board with pieces using a FEN string
     std::string initialFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     parseFen(initialFEN);
-    std::vector<std::string> moves = generateLegalMoves();
-    legalMoves = std::unordered_set<std::string>(moves.begin(), moves.end());
+    std::vector<Move> moves = generateLegalMoves();
+    legalMoves = std::unordered_set<Move>(moves.begin(), moves.end());
 }
 
 void Board::parseFen(const std::string &fen) {
@@ -68,12 +69,12 @@ void Board::parseFen(const std::string &fen) {
     }
 }
 
-std::vector<std::string> Board::generateLegalMoves() {
-    std::vector<std::string> moves;
+std::vector<Move> Board::generateLegalMoves() {
+    std::vector<Move> moves;
     for (Piece& piece : pieces) {
         if ((isWhiteTurn && piece.getColour() == PieceColour::White) 
             || (!isWhiteTurn && piece.getColour() == PieceColour::Black)) {
-            std::vector<std::string> pieceMoves;
+            std::vector<Move> pieceMoves;
             switch (piece.getType()) {
                 case PieceType::Pawn: pieceMoves = generatePawnMoves(piece); break;
                 case PieceType::Rook: pieceMoves = generateRookMoves(piece); break;
@@ -82,9 +83,9 @@ std::vector<std::string> Board::generateLegalMoves() {
                 case PieceType::Queen: pieceMoves = generateQueenMoves(piece); break;
                 case PieceType::King: pieceMoves = generateKingMoves(piece); break;
             }
-            for (const std::string& move : pieceMoves) {
-                sf::Vector2i from(move[0] - 'a', move[1] - '1');
-                sf::Vector2i to(move[2] - 'a', move[3] - '1');
+            for (const Move& move : pieceMoves) {
+                sf::Vector2i from = move.getStart();
+                sf::Vector2i to = move.getEnd();
                 // std::cout << "Checking move: " << move << std::endl;
                 if (!simulateMoveAndCheck(piece, to)) {
                     // std::cout << "Adding move: " << move << std::endl;
@@ -122,7 +123,7 @@ bool Board::isPositionAttacked(int col, int row, PieceColour colour) {
     // std::cout << "=============" << std::endl;
     for (const Piece& piece : pieces) {
         if(piece.getColour() != colour) {
-            std::vector<std::string> moves;
+            std::vector<Move> moves;
             switch (piece.getType()) {
                 case PieceType::Pawn: moves = generatePawnMoves(piece); break;
                 case PieceType::Rook: moves = generateRookMoves(piece); break;
@@ -134,6 +135,7 @@ bool Board::isPositionAttacked(int col, int row, PieceColour colour) {
                     int y = piece.getBoardPosition().y / squareSize;
                     // Directly check the king's attacking positions
                     // To avoid infinite loop while checking castling rights
+                    
                     std::vector<sf::Vector2i> kingMoves = {
                         {x, y + 1},
                         {x, y - 1},
@@ -152,9 +154,8 @@ bool Board::isPositionAttacked(int col, int row, PieceColour colour) {
                     break;
                 }
             }
-            for (const std::string & move : moves) {
-                sf::Vector2i to(move[2] - 'a', move[3] - '1');
-                if (to.x == col && to.y == row) {
+            for (const Move& move : moves) {
+                if (move.getEnd().x == col && move.getEnd().y == row) {
                     // std::cout << "Position " << col << ", " << row << " is attacked by " << piece.getTypeAsString() << "at " << piece.getBoardPosition().x << "," << piece.getBoardPosition().y << std::endl;
                     return true;
                 }
@@ -195,8 +196,8 @@ bool Board::simulateMoveAndCheck(Piece& piece, sf::Vector2i targetPos) {
     return inCheck;
 }
 
-std::vector<std::string> Board::generatePawnMoves(const Piece& piece) {
-    std::vector<std::string> moves;
+std::vector<Move> Board::generatePawnMoves(const Piece& piece) {
+    std::vector<Move> moves;
     int direction = (piece.getColour() == PieceColour::White) ? -1 : 1;
     int startRow = (piece.getColour() == PieceColour::White) ? 6 : 1;
     sf::Vector2i piecePosition = piece.getBoardPosition();
@@ -205,40 +206,45 @@ std::vector<std::string> Board::generatePawnMoves(const Piece& piece) {
 
     // Move forward one square
     if (isValidPosition(col, row + direction) && isEmpty(col, row + direction)) {
-        std::string move = moveToString(piecePosition / squareSize, sf::Vector2i(col, row + direction));
+        Move move = Move(piecePosition / squareSize, sf::Vector2i(col, row + direction), MoveType::Normal);
+        // std::cout << "Move forward: " << move << std::endl;
         moves.push_back(move);
     }
 
     // Move forward two squares from starting position
     if (row == startRow && isEmpty(col, row + direction) && isEmpty(col, row + 2 * direction)) {
-        moves.push_back(moveToString(piecePosition / squareSize, sf::Vector2i(col, row + 2 * direction)));
+        Move move = Move(piecePosition / squareSize, sf::Vector2i(col, row + 2 * direction), MoveType::Normal);
+        moves.push_back(move);
     }
 
     // Capture diagonally left
     if (isValidPosition(col - 1, row + direction) && isEnemyPiece(col - 1, row + direction, piece.getColour())) {
-        std::cout << "Capture left" << std::endl;
-        std::cout << moveToString(piecePosition / squareSize, sf::Vector2i(col - 1, row + direction)) << std::endl;
-        moves.push_back(moveToString(piecePosition / squareSize, sf::Vector2i(col - 1, row + direction)));
+        // std::cout << "Capture left" << std::endl;
+        Move move = Move(piecePosition / squareSize, sf::Vector2i(col - 1, row + direction), MoveType::Capture);
+        // std::cout << move << std::endl;
+        moves.push_back(move);
     }
 
     // Capture diagonally right
     if (isValidPosition(col + 1, row + direction) && isEnemyPiece(col + 1, row + direction, piece.getColour())) {
         std::cout << "Capture right" << std::endl;
-        moves.push_back(moveToString(piecePosition / squareSize, sf::Vector2i(col + 1, row + direction)));
+        Move move = Move(piecePosition / squareSize, sf::Vector2i(col + 1, row + direction), MoveType::Capture);
+        std::cout << move << std::endl;
+        moves.push_back(move);
     }
 
     // En passant capture
     if (isValidPosition(col + 1, row + direction) && sf::Vector2i(col + 1, row + direction) == enPassantTarget) {
-        std::cout << "En passant capture right" << std::endl;
-        std::cout << "col: " << col << " row: " << row << std::endl;
-        std::cout << "enPassantTarget: " << enPassantTarget.x << ", " << enPassantTarget.y << std::endl;
-        std::cout << moveToString(sf::Vector2i(col, row), sf::Vector2i(col + 1, row + direction)) << std::endl;
-        moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(col + 1, row + direction)));
+        // std::cout << "En passant capture right" << std::endl;
+        // std::cout << "col: " << col << " row: " << row << std::endl;
+        // std::cout << "enPassantTarget: " << enPassantTarget.x << ", " << enPassantTarget.y << std::endl;
+        Move move = Move(piecePosition / squareSize, sf::Vector2i(col + 1, row + direction), MoveType::EnPassant);
+        moves.push_back(move);
     }
     if (isValidPosition(col - 1, row + direction) && sf::Vector2i(col - 1, row + direction) == enPassantTarget) {
-        std::cout << "En passant capture left" << std::endl;
-        std::cout << moveToString(sf::Vector2i(col, row), sf::Vector2i(col - 1, row + direction)) << std::endl;
-        moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(col - 1, row + direction)));
+        // std::cout << "En passant capture left" << std::endl;
+        Move move = Move(piecePosition / squareSize, sf::Vector2i(col - 1, row + direction), MoveType::EnPassant);
+        moves.push_back(move);
     }
     // std::cout << "Pawn moves" << std::endl;
     // for(auto move : moves){
@@ -247,8 +253,8 @@ std::vector<std::string> Board::generatePawnMoves(const Piece& piece) {
     return moves;
 }
 
-std::vector<std::string> Board::generateRookMoves(const Piece& piece) {
-    std::vector<std::string> moves;
+std::vector<Move> Board::generateRookMoves(const Piece& piece) {
+    std::vector<Move> moves;
     sf::Vector2i piecePosition = piece.getBoardPosition();
     int row = piecePosition.y / squareSize;
     int col = piecePosition.x / squareSize;
@@ -258,11 +264,13 @@ std::vector<std::string> Board::generateRookMoves(const Piece& piece) {
         // std::cout << "Checking for piece at: " << col << ", " << r << std::endl;
         if (isEmpty(col, r)) {
             // std::cout << "Empty square" << std::endl;
-            moves.push_back(moveToString(piecePosition / squareSize, sf::Vector2i(col, r)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(col, r), MoveType::Normal);
+            moves.push_back(move);
         }
         else if (isEnemyPiece(col, r, piece.getColour())) {
             // std::cout << "Enemy piece" << std::endl;
-            moves.push_back(moveToString(piecePosition / squareSize, sf::Vector2i(col, r)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(col, r), MoveType::Capture);
+            moves.push_back(move);
             break;
         }
         else {
@@ -273,9 +281,11 @@ std::vector<std::string> Board::generateRookMoves(const Piece& piece) {
     // Move down
     for (int r = row - 1; r >= 0; --r) {
         if (isEmpty(col, r)) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(col, r)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(col, r), MoveType::Normal);
+            moves.push_back(move);
         } else if (isEnemyPiece(col, r, piece.getColour())) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(col, r)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(col, r), MoveType::Capture);
+            moves.push_back(move);
             break;
         } else {
             break;
@@ -285,9 +295,11 @@ std::vector<std::string> Board::generateRookMoves(const Piece& piece) {
     // Move right
     for (int c = col + 1; c < 8; ++c) {
         if (isEmpty(c, row)) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(c, row)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(c, row), MoveType::Normal);
+            moves.push_back(move);
         } else if (isEnemyPiece(c, row, piece.getColour())) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(c, row)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(c, row), MoveType::Capture);
+            moves.push_back(move);
             break;
         } else {
             break;
@@ -297,46 +309,55 @@ std::vector<std::string> Board::generateRookMoves(const Piece& piece) {
     // Move left
     for (int c = col - 1; c >= 0; --c) {
         if (isEmpty(c, row)) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(c, row)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(c, row), MoveType::Normal);
+            moves.push_back(move);
         } else if (isEnemyPiece(c, row, piece.getColour())) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(c, row)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(c, row), MoveType::Capture);
+            moves.push_back(move);
             break;
         } else {
             break;
         }
     }
-        // Implement rook movement rules
     return moves;
 }
 
-std::vector<std::string> Board::generateKnightMoves(const Piece& piece) {
-    std::vector<std::string> moves;
-    int row = piece.getBoardPosition().y / squareSize;
-    int col = piece.getBoardPosition().x / squareSize;
-
+std::vector<Move> Board::generateKnightMoves(const Piece& piece) {
+    std::vector<Move> moves;
+    sf::Vector2i piecePosition = piece.getBoardPosition();
+    int row = piecePosition.y / squareSize;
+    int col = piecePosition.x / squareSize;
     std::vector<sf::Vector2i> knightMoves = {
-        {col + 1, row + 2}, {col + 1, row - 2}, {col - 1, row + 2}, {col - 1, row - 2}, {col + 2, row + 1}, {col + 2, row - 1}, {col - 2, row + 1}, {col - 2, row - 1}};
+        {col + 1, row + 2}, {col + 1, row - 2}, {col - 1, row + 2}, {col - 1, row - 2},
+        {col + 2, row + 1}, {col + 2, row - 1}, {col - 2, row + 1}, {col - 2, row - 1}
+    };
 
-    for (const auto& move: knightMoves) {
-        if (isValidPosition(move.x, move.y) && (isEmpty(move.x, move.y) || isEnemyPiece(move.x, move.y, piece.getColour()))) {
-            moves.push_back(moveToString(piece.getBoardPosition() / squareSize, move));
+    for (const auto& move : knightMoves) {
+        if (isValidPosition(move.x, move.y)) {
+            if (isEmpty(move.x, move.y)) {
+                moves.push_back(Move(piecePosition / squareSize, move, MoveType::Normal));
+            } else if (isEnemyPiece(move.x, move.y, piece.getColour())) {
+                moves.push_back(Move(piecePosition / squareSize, move, MoveType::Capture));
+            }
         }
     }
-    // Implement knight movement rules
     return moves;
 }
 
-std::vector<std::string> Board::generateBishopMoves(const Piece& piece) {
-    std::vector<std::string> moves;
-    int row = piece.getBoardPosition().y / squareSize;
-    int col = piece.getBoardPosition().x / squareSize;
+std::vector<Move> Board::generateBishopMoves(const Piece& piece) {
+    std::vector<Move> moves;
+    sf::Vector2i piecePosition = piece.getBoardPosition();
+    int row = piecePosition.y / squareSize;
+    int col = piecePosition.x / squareSize;
 
     // Move diagonally up-right
     for (int r = row + 1, c = col + 1; r < 8 && c < 8; ++r, ++c) {
         if (isEmpty(c, r)) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(c, r)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(c, r), MoveType::Normal);
+            moves.push_back(move);
         } else if (isEnemyPiece(c, r, piece.getColour())) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(c, r)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(c, r), MoveType::Capture);
+            moves.push_back(move);
             break;
         } else {
             break;
@@ -346,9 +367,11 @@ std::vector<std::string> Board::generateBishopMoves(const Piece& piece) {
     // Move diagonally up-left
     for (int r = row + 1, c = col - 1; r < 8 && c >= 0; ++r, --c) {
         if (isEmpty(c, r)) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(c, r)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(c, r), MoveType::Normal);
+            moves.push_back(move);
         } else if (isEnemyPiece(c, r, piece.getColour())) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(c, r)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(c, r), MoveType::Capture);
+            moves.push_back(move);
             break;
         } else {
             break;
@@ -358,9 +381,11 @@ std::vector<std::string> Board::generateBishopMoves(const Piece& piece) {
     // Move diagonally down-right
     for (int r = row - 1, c = col + 1; r >= 0 && c < 8; --r, ++c) {
         if (isEmpty(c, r)) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(c, r)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(c, r), MoveType::Normal);
+            moves.push_back(move);
         } else if (isEnemyPiece(c, r, piece.getColour())) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(c, r)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(c, r), MoveType::Capture);
+            moves.push_back(move);
             break;
         } else {
             break;
@@ -370,24 +395,25 @@ std::vector<std::string> Board::generateBishopMoves(const Piece& piece) {
     // Move diagonally down-left
     for (int r = row - 1, c = col - 1; r >= 0 && c >= 0; --r, --c) {
         if (isEmpty(c, r)) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(c, r)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(c, r), MoveType::Normal);
+            moves.push_back(move);
         } else if (isEnemyPiece(c, r, piece.getColour())) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(c, r)));
+            Move move = Move(piecePosition / squareSize, sf::Vector2i(c, r), MoveType::Capture);
+            moves.push_back(move);
             break;
         } else {
             break;
         }
     }
-    // Implement bishop movement rules
     return moves;
 }
 
-std::vector<std::string> Board::generateQueenMoves(const Piece& piece) {
-    std::vector<std::string> moves;
+std::vector<Move> Board::generateQueenMoves(const Piece& piece) {
+    std::vector<Move> moves;
 
     // Combine rook and bishop moves
-    std::vector<std::string> rookMoves = generateRookMoves(piece);
-    std::vector<std::string> bishopMoves = generateBishopMoves(piece);
+    std::vector<Move> rookMoves = generateRookMoves(piece);
+    std::vector<Move> bishopMoves = generateBishopMoves(piece);
 
     moves.insert(moves.end(), rookMoves.begin(), rookMoves.end());
     moves.insert(moves.end(), bishopMoves.begin(), bishopMoves.end());
@@ -398,10 +424,11 @@ std::vector<std::string> Board::generateQueenMoves(const Piece& piece) {
     return moves;
 }
 
-std::vector<std::string> Board::generateKingMoves(const Piece& piece) {
-    std::vector<std::string> moves;
-    int row = piece.getBoardPosition().y / squareSize;
-    int col = piece.getBoardPosition().x / squareSize;
+std::vector<Move> Board::generateKingMoves(const Piece& piece) {
+    std::vector<Move> moves;
+    sf::Vector2i piecePosition = piece.getBoardPosition();
+    int row = piecePosition.y / squareSize;
+    int col = piecePosition.x / squareSize;
 
     std::vector<sf::Vector2i> kingMoves = {
         {col, row + 1}, {col, row - 1}, {col + 1, row}, {col - 1, row},
@@ -409,33 +436,28 @@ std::vector<std::string> Board::generateKingMoves(const Piece& piece) {
     };
 
     for (const auto& move : kingMoves) {
-        if (isValidPosition(move.x, move.y) && (isEmpty(move.x, move.y) || isEnemyPiece(move.x, move.y, piece.getColour()))) {
-            moves.push_back(moveToString(sf::Vector2i(col, row), move));
+        if (isValidPosition(move.x, move.y)) {
+            if (isEmpty(move.x, move.y)) {
+                moves.push_back(Move(piecePosition / squareSize, move, MoveType::Normal));
+            } else if (isEnemyPiece(move.x, move.y, piece.getColour())) {
+                moves.push_back(Move(piecePosition / squareSize, move, MoveType::Capture));
+            }
         }
     }
-    //castling
-    // std::cout << "Checking for castling" << std::endl;
-    if(piece.getColour() == PieceColour::White) {
-        std::cout << "Checking kingside castling white" << std::endl;
-        if(canCastleKingside(PieceColour::White)){
-            std::cout << "White can castle kingside" << std::endl;
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(6, 7)));
+    // Castling
+    if (piece.getColour() == PieceColour::White) {
+        if (canCastleKingside(PieceColour::White)) {
+            moves.push_back(Move(piecePosition / squareSize, sf::Vector2i(6, 7), MoveType::Castling));
         }
-        // std::cout << "Checking queenside castling white" << std::endl;
-        if(canCastleQueenside(PieceColour::White)){
-            std::cout << "White can castle queenside" << std::endl;
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(2, 7)));
+        if (canCastleQueenside(PieceColour::White)) {
+            moves.push_back(Move(piecePosition / squareSize, sf::Vector2i(2, 7), MoveType::Castling));
         }
     } else {
-        // std::cout << "Checking kingside castling black" << std::endl;
-        if(canCastleKingside(PieceColour::Black)){
-            // std::cout << "Black can castle kingside" << std::endl;
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(6, 0)));
+        if (canCastleKingside(PieceColour::Black)) {
+            moves.push_back(Move(piecePosition / squareSize, sf::Vector2i(6, 0), MoveType::Castling));
         }
-        // std::cout << "Checking queenside castling black" << std::endl;
-        if(canCastleQueenside(PieceColour::Black)){
-            std::cout << "Black can castle queenside" << std::endl;
-            moves.push_back(moveToString(sf::Vector2i(col, row), sf::Vector2i(2, 0)));
+        if (canCastleQueenside(PieceColour::Black)) {
+            moves.push_back(Move(piecePosition / squareSize, sf::Vector2i(2, 0), MoveType::Castling));
         }
     }
     return moves;
@@ -577,21 +599,23 @@ bool Board::isEnemyPiece(int col, int row, PieceColour colour) {
     return false;
 }
 
-std::string Board::moveToString(sf::Vector2i from, sf::Vector2i to) {
-    // std::cout << "From: " << from.x << ", " << from.y << std::endl;
-    // std::cout << "To: " << to.x << ", " << to.y << std::endl;
-    char colFrom = 'a' + from.x;
-    char rowFrom = '1' + from.y;
-    char colTo = 'a' + to.x;
-    char rowTo = '1' + to.y;
-    // std::cout << "Move: " << colFrom << rowFrom << colTo << rowTo << std::endl;
-    return std::string() + colFrom + rowFrom + colTo + rowTo;
-}
+bool Board::isLegalMove(const Move &move) {
+    for (const auto& legalMove : legalMoves) {
+        std::cout << "legalMove start: " << legalMove.getStart().x << ", " << legalMove.getStart().y << std::endl;
+        std::cout << "move start: " << move.getStart().x << ", " << move.getStart().y << std::endl;
 
-bool Board::isLegalMove(const std::string &move) {
-    bool isLegal = legalMoves.find(move) != legalMoves.end();
-    // std::cout << "Is legal move: " << isLegal << std::endl;
-    return isLegal;
+        std::cout << "legalMove end: " << legalMove.getEnd().x << ", " << legalMove.getEnd().y << std::endl;
+        std::cout << "move end: " << move.getEnd().x << ", " << move.getEnd().y << std::endl;
+
+        std::cout << "legalMove type: " << moveTypeToString(legalMove.getType()) << std::endl;
+        std::cout << "move type: " << moveTypeToString(move.getType()) << std::endl;
+        if (legalMove.getStart() == move.getStart() && 
+            legalMove.getEnd() == move.getEnd()) {
+                std::cout << "Legal move found" << std::endl;
+            return true;
+        }
+    }
+    return false;
 }
 
 void Board::draw(sf::RenderWindow& window) {
@@ -660,9 +684,9 @@ void Board::handleEvent(sf::Event& event, sf::RenderWindow& window) {
                 // Move the selected piece to the new position
                 sf::Vector2i targetPos = snapToSquare(mousePos);
                 sf::Vector2i originalPos = sf::Vector2i(selectedPiece->getBoardPosition().x / squareSize, selectedPiece->getBoardPosition().y / squareSize);
-
-                std::string move = moveToString(sf::Vector2i(selectedPiece->getBoardPosition().x / squareSize, selectedPiece->getBoardPosition().y / squareSize), targetPos / squareSize);
-                std::cout << "Move: " << move << std::endl;
+                std::cout << "originalPos: " << selectedPiece->getBoardPosition().x / squareSize << ", " << selectedPiece->getBoardPosition().y / squareSize << std::endl; 
+                Move move = Move(originalPos, targetPos / squareSize, MoveType::Normal);
+                std::cout << "Move: " << move.getEnd().x << ", " << move.getEnd().y << std::endl;
                 if (isLegalMove(move) && isWhiteTurn == (selectedPiece->getColour() == PieceColour::White)) {
                     std::cout << "targetPos: " << targetPos.x << ", " << targetPos.y << std::endl;
                     if (selectedPiece->getType() == PieceType::King && 
@@ -682,7 +706,7 @@ void Board::handleEvent(sf::Event& event, sf::RenderWindow& window) {
                             std::cout << "En passant found" << std::endl;
                             int captureRow = isWhiteTurn ? targetPos.y / squareSize + 1 : targetPos.y / squareSize - 1;
                             std::cout << "Capture row: " << captureRow << std::endl;
-                            std::cout << "move: " << move << std::endl;
+                            // std::cout << "move: " << move << std::endl;
                             std::cout << "Selected piece position 1: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
                             for (auto it = pieces.begin(); it != pieces.end(); ++it) {
                                 if(it->getBoardPosition().x / squareSize == targetPos.x / squareSize && it->getPosition().y / squareSize == captureRow) {
@@ -842,8 +866,8 @@ void Board::endTurn() {
     std::cout << "Ending turn" << std::endl;
     std::cout << "==========" << std::endl;
     isWhiteTurn = !isWhiteTurn;
-    std::vector<std::string> moves = generateLegalMoves();
-    legalMoves = std::unordered_set<std::string>(moves.begin(), moves.end());
+    std::vector<Move> moves = generateLegalMoves();
+    legalMoves = std::unordered_set<Move>(moves.begin(), moves.end());
     // for(auto& move : legalMoves){
     //     std::cout << move << std::endl;
     // }
@@ -877,12 +901,12 @@ bool Board::isCheckmate(PieceColour colour) {
     std::cout << "colour: " << (colour==PieceColour::White? "white" : "black") << std::endl;
     if(!isKingInCheck(colour)) return false;
     std::cout << "the King is in check" << std::endl;
-    std::vector<std::string> moves = generateLegalMoves();
+    std::vector<Move> moves = generateLegalMoves();
 
-    for (const std::string& move : moves) {
-        sf::Vector2i from(move[0] - 'a', move[1] - '1');
-        sf::Vector2i to(move[2] - 'a', move[3] - '1');
-        std::cout << "Checking Move: " << move << std::endl;
+    for (const Move& move : moves) {
+        sf::Vector2i from = move.getStart();
+        sf::Vector2i to = move.getEnd();
+        // std::cout << "Checking Move: " << move << std::endl;
         Piece* piece = nullptr;
         for (Piece& p : pieces) {
             if (p.getBoardPosition() / squareSize == from && p.getColour() == colour) {
@@ -905,13 +929,75 @@ bool Board::isCheckmate(PieceColour colour) {
             piece->setPosition(originalPos);
 
             if (!stillInCheck) {
-                std::cout << "Found a move that removes the check: " << move << std::endl;
+                // std::cout << "Found a move that removes the check: " << move << std::endl;
                 return false; // There is a move that removes the check
             }
         }
     }
 
     return true;
+}
+
+void Board::applyMove(const Move& move) {
+    sf::Vector2i start = move.getStart();
+    sf::Vector2i end = move.getEnd();
+    MoveType type = move.getType();
+
+    Piece *piece = nullptr;
+    for(Piece& p : pieces) {
+        if(p.getBoardPosition() / squareSize == start) {
+            piece = &p;
+            break;
+        }
+    }
+
+    if(piece == nullptr) {
+        return;
+    }
+
+    switch (type) {
+        case MoveType::Normal:
+            piece->setPosition(end * squareSize);
+            break;
+        case MoveType::Capture:
+            pieces.erase(std::remove_if(pieces.begin(), pieces.end(), [&](const Piece& p) {
+                return p.getBoardPosition() == end;
+            }), pieces.end());
+            piece->setPosition(end);
+            break;
+        case MoveType::Castling:
+            // Handle castling (this is a simplified example, you may need to adjust it)
+            if (end.x == 6) { // Kingside castling
+                piece->setPosition(end);
+                for (Piece& p : pieces) {
+                    if (p.getType() == PieceType::Rook && p.getBoardPosition() == sf::Vector2i(7, start.y)) {
+                        p.setPosition(sf::Vector2i(5, start.y));
+                        break;
+                    }
+                }
+            } else if (end.x == 2) { // Queenside castling
+                piece->setPosition(end);
+                for (Piece& p : pieces) {
+                    if (p.getType() == PieceType::Rook && p.getBoardPosition() == sf::Vector2i(0, start.y)) {
+                        p.setPosition(sf::Vector2i(3, start.y));
+                        break;
+                    }
+                }
+            }
+            break;
+        case MoveType::EnPassant:
+            // Handle en passant capture
+            piece->setPosition(end);
+            pieces.erase(std::remove_if(pieces.begin(), pieces.end(), [&](const Piece& p) {
+                return p.getBoardPosition() == sf::Vector2i(end.x, start.y);
+            }), pieces.end());
+            break;
+        case MoveType::Promotion:
+            // Promote the pawn to a queen (this is a simplified example, you may need to allow for other promotions)
+            piece->setPosition(end);
+            piece->setType(PieceType::Queen);
+            break;
+    }
 }
 
 PieceType showPromotionWindow(sf::RenderWindow& window, PieceColour colour) {

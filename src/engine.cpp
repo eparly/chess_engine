@@ -2,20 +2,19 @@
 #include <iostream>
 #include <sstream>
 
-Engine::Engine() : isWhiteTurn(true) {
-    for (int i = 0; i < 8; ++i) {
-        for (int j = 0; j < 8; ++j) {
-            board[i][j] = Piece();
-        }
-    }
-}
+Engine::Engine() : board(64, sf::Color::White, sf::Color::Black), isWhiteTurn(true) {}
+
 
 void Engine::setBoardState(const std::string &fen) {
-    parseFen(fen);
+    board.parseFen(fen);
+    updateBitboard();
 }
 
 std::string Engine::getBestMove() {
-    return searchBestMove(3);
+    Move bestMove = searchBestMove(3);
+    std::ostringstream oss;
+    oss << bestMove;
+    return oss.str();
 }
 
 void Engine::parseFen(const std::string& fen) {
@@ -89,39 +88,8 @@ std::string Engine::generateFen() const {
     return oss.str();
 }
 
-std::vector<std::string> Engine::generateLegalMoves() {
-    std::vector<std::string> allMoves;
-    // for (int row = 0; row < 8; ++row) {
-    //     for (int col = 0; col < 8; ++col) {
-    //         if ((isWhiteTurn && board[col][row].getColour() == PieceColour::White) || (!isWhiteTurn && board[col][row].getColour() == PieceColour::Black)) {
-    //             std::vector<std::string> pieceMoves;
-    //             switch (board[col][row].getType()) {
-    //                 case PieceType::Pawn:
-    //                     pieceMoves = generatePawnMoves(col, row);
-    //                     break;
-    //                 case PieceType::Rook:
-    //                     pieceMoves = generateRookMoves(col, row);
-    //                     break;
-    //                 case PieceType::Knight:
-    //                     pieceMoves = generateKnightMoves(col, row);
-    //                     break;
-    //                 case PieceType::Bishop:
-    //                     pieceMoves = generateBishopMoves(col, row);
-    //                     break;
-    //                 case PieceType::Queen:
-    //                     pieceMoves = generateQueenMoves(col, row);
-    //                     break;
-    //                 case PieceType::King:
-    //                     pieceMoves = generateKingMoves(col, row);
-    //                     break;
-    //                 default:
-    //                     break;
-    //             }
-    //             allMoves.insert(allMoves.end(), pieceMoves.begin(), pieceMoves.end());
-    //         }
-    //     }
-    // }
-    return allMoves;
+std::vector<Move> Engine::generateLegalMoves() {
+    return board.generateLegalMoves();
 }
 
 int Engine::evaluateBoard() const {
@@ -166,42 +134,38 @@ std::string Engine::searchBestMove(int depth) {
     return bestMove;
 }
 
-// Implement move generation functions (generatePawnMoves, generateRookMoves, etc.) here
+void Engine::applyMove(const Move& move) {
+    board.applyMove(move);
+    updateBitboard();
+}
 
-// Example implementation for pawn moves
-std::vector<std::string> Engine::generatePawnMoves(int x, int y) {
-    std::vector<std::string> moves;
-    // int direction = (board[x][y].getColour() == PieceColour::White) ? 1 : -1;
+void Engine::undoMove(const Move& move) {
+    board.undoMove(move);
+    updateBitboard();
+}
 
-    // // Move forward one square
-    // if (isValidPosition(x, y + direction) && board[x][y + direction].getType() == PieceType::None) {
-    //     moves.push_back(moveToString(sf::Vector2i(x, y), sf::Vector2i(x, y + direction)));
+void Engine::updateBitboard() {
+    for (int row = 0; row < 8; ++row) {
+        for (int col = 0; col < 8; ++col) {
+            Piece piece = board.getPiece(col, row);
+            int square = row * 8 + col;
+            bitboard.setPiece(square, pieceToBitboard(piece));
+        }
+    }
+}
 
-    //     // Move forward two squares from starting position
-    //     if ((board[x][y].getColour() == PieceColour::White && y == 1) || (board[x][y].getColour() == PieceColour::Black && y == 6)) {
-    //         if (isValidPosition(x, y + 2 * direction) && board[x][y + 2 * direction].getType() == PieceType::None) {
-    //             moves.push_back(moveToString(sf::Vector2i(x, y), sf::Vector2i(x, y + 2 * direction)));
-    //         }
-    //     }
-    // }
-
-    // // Capture diagonally
-    // if (isValidPosition(x + 1, y + direction) && board[x + 1][y + direction].getColour() != board[x][y].getColour() && board[x + 1][y + direction].getType() != PieceType::None) {
-    //     moves.push_back(moveToString(sf::Vector2i(x, y), sf::Vector2i(x + 1, y + direction)));
-    // }
-    // if (isValidPosition(x - 1, y + direction) && board[x - 1][y + direction].getColour() != board[x][y].getColour() && board[x - 1][y + direction].getType() != PieceType::None) {
-    //     moves.push_back(moveToString(sf::Vector2i(x, y), sf::Vector2i(x - 1, y + direction)));
-    // }
-
-    // // En passant capture
-    // if (isValidPosition(x + 1, y + direction) && sf::Vector2i(x + 1, y + direction) == enPassantTarget) {
-    //     moves.push_back(moveToString(sf::Vector2i(x, y), sf::Vector2i(x + 1, y + direction)));
-    // }
-    // if (isValidPosition(x - 1, y + direction) && sf::Vector2i(x - 1, y + direction) == enPassantTarget) {
-    //     moves.push_back(moveToString(sf::Vector2i(x, y), sf::Vector2i(x - 1, y + direction)));
-    // }
-
-    return moves;
+uint64_t Engine::pieceToBitboard(const Piece& piece) const {
+    uint64_t bitboardPiece = 0;
+    switch(piece.getType()) {
+        case PieceType::Pawn: bitboardPiece = 1; break;
+        case PieceType::Rook: bitboardPiece = 2; break;
+        case PieceType::Knight: bitboardPiece = 3; break;
+        case PieceType::Bishop: bitboardPiece = 4; break;
+        case PieceType::Queen: bitboardPiece = 5; break;
+        case PieceType::King: bitboardPiece = 6; break;
+        default: break;
+    }
+    return bitboardPiece;
 }
 
 

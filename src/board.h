@@ -4,6 +4,7 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include "piece.h"
+#include "move.h"
 #include <unordered_set>
 
 class Board {
@@ -14,8 +15,11 @@ public:
     void handleEvent(sf::Event& event, sf::RenderWindow& window);
     void selectPiece(const sf::Vector2f& mousePos);
     bool isValidMove(Piece &piece, sf::Vector2i targetPos);
-    std::vector<std::string> generateLegalMoves();
-    bool isLegalMove(const std::string &move);
+    std::vector<Move> generateLegalMoves();
+    bool isLegalMove(const Move &move);
+    void parseFen(const std::string &fen);
+    void applyMove(const Move &move);
+
 
 private:
     int squareSize;
@@ -40,25 +44,24 @@ private:
 
     void capturePiece(Piece &piece);
 
-    std::unordered_set<std::string> legalMoves;
-    void parseFen(const std::string &fen);
+    std::unordered_set<Move> legalMoves;
     void initializeBoard();
 
     sf::Texture whiteRookTexture, whiteKnightTexture, whiteBishopTexture, whiteQueenTexture, whiteKingTexture, whitePawnTexture;
     sf::Texture blackRookTexture, blackKnightTexture, blackBishopTexture, blackQueenTexture, blackKingTexture, blackPawnTexture;
 
 
-    std::vector<std::string> generatePawnMoves(const Piece& piece);
-    std::vector<std::string> generateRookMoves(const Piece& piece);
-    std::vector<std::string> generateKnightMoves(const Piece& piece);
-    std::vector<std::string> generateBishopMoves(const Piece& piece);
-    std::vector<std::string> generateQueenMoves(const Piece& piece);
-    std::vector<std::string> generateKingMoves(const Piece& piece);
+    std::vector<Move> generatePawnMoves(const Piece& piece);
+    std::vector<Move> generateRookMoves(const Piece& piece);
+    std::vector<Move> generateKnightMoves(const Piece& piece);
+    std::vector<Move> generateBishopMoves(const Piece& piece);
+    std::vector<Move> generateQueenMoves(const Piece& piece);
+    std::vector<Move> generateKingMoves(const Piece& piece);
 
     bool isValidPosition(int col, int row);
     bool isEmpty(int col, int row);
     bool isEnemyPiece(int col, int row, PieceColour colour);
-    std::string moveToString(sf::Vector2i from, sf::Vector2i to);
+    // std::string moveToString(sf::Vector2i from, sf::Vector2i to); //unused  - remove
 
     bool isKingInCheck(PieceColour colour);
     bool isPositionAttacked(int col, int row, PieceColour colour);
