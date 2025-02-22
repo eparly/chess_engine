@@ -18,8 +18,8 @@ public:
     std::vector<Move> generateLegalMoves();
     bool isLegalMove(const Move &move);
     void parseFen(const std::string &fen);
-    void applyMove(const Move &move);
-
+    void applyMove(const Move &move, sf::RenderWindow& window);
+    Piece *getPiece(int x, int y);
 
 private:
     int squareSize;

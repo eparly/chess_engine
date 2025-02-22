@@ -688,143 +688,7 @@ void Board::handleEvent(sf::Event& event, sf::RenderWindow& window) {
                 Move move = Move(originalPos, targetPos / squareSize, MoveType::Normal);
                 std::cout << "Move: " << move.getEnd().x << ", " << move.getEnd().y << std::endl;
                 if (isLegalMove(move) && isWhiteTurn == (selectedPiece->getColour() == PieceColour::White)) {
-                    std::cout << "targetPos: " << targetPos.x << ", " << targetPos.y << std::endl;
-                    if (selectedPiece->getType() == PieceType::King && 
-                            (targetPos / squareSize == sf::Vector2i(6, 7) && canCastleKingside(PieceColour::White) || 
-                            targetPos / squareSize == sf::Vector2i(2, 7) && canCastleQueenside(PieceColour::White) || 
-                            targetPos / squareSize == sf::Vector2i(6, 0) && canCastleKingside(PieceColour::Black) || 
-                            targetPos / squareSize == sf::Vector2i(2, 0) && canCastleQueenside(PieceColour::Black)
-                            )
-                        ){
-                        std::cout << "Performing castling" << std::endl;
-                        performCastling(*selectedPiece, targetPos / squareSize);
-                    } else {
-                        std::cout << "checking en passant" << std::endl;
-                        std::cout << "targetPos: " << targetPos.x / squareSize << ", " << targetPos.y / squareSize << std::endl;
-                        std::cout << "enPassantTarget: " << enPassantTarget.x << ", " << enPassantTarget.y << std::endl;
-                        if(selectedPiece->getType() == PieceType::Pawn && targetPos / squareSize == enPassantTarget) {
-                            std::cout << "En passant found" << std::endl;
-                            int captureRow = isWhiteTurn ? targetPos.y / squareSize + 1 : targetPos.y / squareSize - 1;
-                            std::cout << "Capture row: " << captureRow << std::endl;
-                            // std::cout << "move: " << move << std::endl;
-                            std::cout << "Selected piece position 1: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
-                            for (auto it = pieces.begin(); it != pieces.end(); ++it) {
-                                if(it->getBoardPosition().x / squareSize == targetPos.x / squareSize && it->getPosition().y / squareSize == captureRow) {
-                                    std::cout << "Capturing piece at: " << it->getPosition().x << ", " << it->getPosition().y << std::endl;
-                                    std::cout << "Selected piece position 3: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
-
-                                    // Store the index of the selected piece
-                                    int selectedIndex = std::distance(pieces.begin(), std::find(pieces.begin(), pieces.end(), *selectedPiece));
-                                    std::cout << "Selected piece index: " << selectedIndex << std::endl;
-                                    std::cout << "size1: " << pieces.size() << std::endl;
-                                    pieces.erase(it);
-                                    std::cout << "size2: " << pieces.size() << std::endl;
-
-
-                                    // Restore the selected piece pointer
-                                    //This is super janky but for some reason it works
-                                    //Do not touch as long as everything is working!!
-                                    if(selectedPiece->getColour() == PieceColour::White) {
-                                        selectedPiece = &pieces[selectedIndex-1];
-                                    }
-                                    else {
-                                        selectedPiece = &pieces[selectedIndex];
-                                    }
-                                    std::cout << "Selected piece position 4: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
-
-                                    break;
-                                }
-                            }
-                            std::cout << "Selected piece position 2: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
-
-                            std::cout << "Piece captured" << std::endl;
-                            selectedPiece->setPosition(targetPos);
-                        }
-                    }
-                    // Check if there is a piece at the target position
-                    selectedPiece->setPosition(targetPos);
-
-                    //handle pawn promotion
-                    std::cout << "Checking pawn promotion" << std::endl;
-                    std::cout << "Selected piece type: " << selectedPiece->getTypeAsString() << std::endl;
-                    std::cout << "Target position: " << targetPos.x << ", " << targetPos.y << std::endl;
-                    if(selectedPiece->getType() == PieceType::Pawn && (targetPos.y / squareSize == 0 || targetPos.y / squareSize == 7)) {
-                        std::cout << "Promoting pawn" << std::endl;
-                        PieceType promotionType = showPromotionWindow(window, selectedPiece->getColour());
-                        selectedPiece->setType(promotionType);
-                    }
-
-                    // Set en passant target
-                    std::cout << "Checking en passant" << std::endl;
-                    std::cout << abs(targetPos.y / squareSize - originalPosition.y / squareSize) << std::endl;
-                    if (selectedPiece->getType() == PieceType::Pawn && abs(targetPos.y / squareSize - originalPosition.y / squareSize) == 2)
-                    {
-                        std::cout << "Setting en passant target" << std::endl;
-                        std::cout << "Target position: " << targetPos.x << ", " << targetPos.y << std::endl;
-                        enPassantTarget = sf::Vector2i(targetPos.x / squareSize, (targetPos.y / squareSize + originalPosition.y / squareSize) / 2);
-                    }
-                    else
-                    {
-                        enPassantTarget = sf::Vector2i(-500, -500);
-                    }
-
-                    //update castling rights
-                    std::cout << "White king moved: " << whiteKingMoved << std::endl;
-
-                    if (selectedPiece->getType() == PieceType::King) {
-                        if (selectedPiece->getColour() == PieceColour::White) {
-                            whiteKingMoved = true;
-                            std::cout << "White king moved here" << std::endl;
-                        } else {
-                            blackKingMoved = true;
-                        }
-                    } else if (selectedPiece->getType() == PieceType::Rook) {
-                        if (selectedPiece->getColour() == PieceColour::White) {
-                            if (originalPosition / squareSize == sf::Vector2i(0, 7)) {
-                                whiteQueensideRookMoved = true;
-                            } else if (originalPosition / squareSize == sf::Vector2i(7, 7)) {
-                                whiteKingsideRookMoved = true;
-                            }
-                        } else {
-                            // std::cout << "Black rook moved" << std::endl;
-                            // std::cout << "Original position: " << originalPosition.x << ", " << originalPosition.y << std::endl;
-                            if (originalPosition / squareSize == sf::Vector2i(0, 0)) {
-                                blackQueensideRookMoved = true;
-                            } else if (originalPosition / squareSize == sf::Vector2i(7, 0)) {
-                                blackKingsideRookMoved = true;
-                            }
-                        }
-                    }
-
-                    std::cout << "Moving piece" << selectedPiece->getTypeAsString() << std::endl;
-                    std::cout << "Target position: " << targetPos.x << ", " << targetPos.y << std::endl;
-                    std::cout << "Original position: " << originalPosition.x << ", " << originalPosition.y << std::endl;
-                    std::cout << "Selected piece position: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
-                    bool isPieceAtTarget = false;
-                    for (auto& piece : pieces) {
-                        if (piece.getBoardPosition() == targetPos && selectedPiece != &piece) {
-                            std::cout << "Piece at target position: " << piece.getTypeAsString() << std::endl;
-                            isPieceAtTarget = true;
-                            if (piece.getColour() != selectedPiece->getColour()) {
-                                capturePiece(piece);
-                            }
-                            break;
-                        }
-                    }
-
-                    if (isCheckmate(isWhiteTurn ? PieceColour::Black : PieceColour::White)) {
-                        gameOver = true;
-                        gameOverMessage = (isWhiteTurn ? "White" : "Black") + std::string(" wins by checkmate!");
-                        // Store the position of the king in checkmate
-                        for (Piece& piece : pieces) {
-                            if (piece.getType() == PieceType::King && piece.getColour() == (isWhiteTurn ? PieceColour::Black : PieceColour::White)) {
-                                checkmateKingPosition = sf::Vector2i(piece.getPosition().x / squareSize, piece.getPosition().y / squareSize);
-                                break;
-                            }
-                        }
-                        std::cout << gameOverMessage << std::endl;
-                    }
-                    endTurn();
+                    applyMove(move, window);
                 }
                 // Unselect the piece
                 selectedPiece = nullptr;
@@ -938,66 +802,150 @@ bool Board::isCheckmate(PieceColour colour) {
     return true;
 }
 
-void Board::applyMove(const Move& move) {
-    sf::Vector2i start = move.getStart();
+void Board::applyMove(const Move& move, sf::RenderWindow& window) {
     sf::Vector2i end = move.getEnd();
+    sf::Vector2i start = move.getStart();
     MoveType type = move.getType();
+    if (selectedPiece->getType() == PieceType::King && 
+            (end == sf::Vector2i(6, 7) && canCastleKingside(PieceColour::White) || 
+            end  == sf::Vector2i(2, 7) && canCastleQueenside(PieceColour::White) || 
+            end == sf::Vector2i(6, 0) && canCastleKingside(PieceColour::Black) || 
+            end == sf::Vector2i(2, 0) && canCastleQueenside(PieceColour::Black)
+            )
+        ){
+        std::cout << "Performing castling" << std::endl;
+        performCastling(*selectedPiece, end);
+    } else {
+        std::cout << "checking en passant" << std::endl;
+        std::cout << "end: " << end.x << ", " << end.y << std::endl;
+        std::cout << "enPassantTarget: " << enPassantTarget.x << ", " << enPassantTarget.y << std::endl;
+        if(selectedPiece->getType() == PieceType::Pawn && end == enPassantTarget) {
+            std::cout << "En passant found" << std::endl;
+            int captureRow = isWhiteTurn ? end.y + 1 : end.y - 1;
+            std::cout << "Capture row: " << captureRow << std::endl;
+            // std::cout << "move: " << move << std::endl;
+            for (auto it = pieces.begin(); it != pieces.end(); ++it) {
+                if(it->getBoardPosition().x / squareSize == end.x && it->getPosition().y / squareSize == captureRow) {
+                    std::cout << "Capturing piece at: " << it->getPosition().x << ", " << it->getPosition().y << std::endl;
 
-    Piece *piece = nullptr;
-    for(Piece& p : pieces) {
-        if(p.getBoardPosition() / squareSize == start) {
-            piece = &p;
+                    // Store the index of the selected piece
+                    int selectedIndex = std::distance(pieces.begin(), std::find(pieces.begin(), pieces.end(), *selectedPiece));
+                    std::cout << "Selected piece index: " << selectedIndex << std::endl;
+                    std::cout << "size1: " << pieces.size() << std::endl;
+                    pieces.erase(it);
+                    std::cout << "size2: " << pieces.size() << std::endl;
+
+
+                    // Restore the selected piece pointer
+                    //This is super janky but for some reason it works
+                    //Do not touch as long as everything is working!!
+                    if(selectedPiece->getColour() == PieceColour::White) {
+                        selectedPiece = &pieces[selectedIndex-1];
+                    }
+                    else {
+                        selectedPiece = &pieces[selectedIndex];
+                    }
+
+                    break;
+                }
+            }
+            std::cout << "Piece captured" << std::endl;
+            selectedPiece->setPosition(end * squareSize);
+        }
+    }
+    // Check if there is a piece at the target position
+    selectedPiece->setPosition(end * squareSize);
+
+    //handle pawn promotion
+    std::cout << "Checking pawn promotion" << std::endl;
+    std::cout << "Selected piece type: " << selectedPiece->getTypeAsString() << std::endl;
+    std::cout << "Target position: " << end.x << ", " << end.y << std::endl;
+    if(selectedPiece->getType() == PieceType::Pawn && (end.y == 0 ||end.y == 7)) {
+        std::cout << "Promoting pawn" << std::endl;
+        PieceType promotionType = showPromotionWindow(window, selectedPiece->getColour());
+        selectedPiece->setType(promotionType);
+    }
+
+    // Set en passant target
+    std::cout << "Checking en passant" << std::endl;
+    std::cout << abs(end.y - originalPosition.y / squareSize) << std::endl;
+    if (selectedPiece->getType() == PieceType::Pawn && abs(end.y - originalPosition.y / squareSize) == 2)
+    {
+        std::cout << "Setting en passant target" << std::endl;
+        std::cout << "Target position: " << end.x << ", " << end.y << std::endl;
+        enPassantTarget = sf::Vector2i(end.x, (end.y + originalPosition.y / squareSize) / 2);
+    }
+    else
+    {
+        enPassantTarget = sf::Vector2i(-500, -500);
+    }
+
+    //update castling rights
+    std::cout << "White king moved: " << whiteKingMoved << std::endl;
+
+    if (selectedPiece->getType() == PieceType::King) {
+        if (selectedPiece->getColour() == PieceColour::White) {
+            whiteKingMoved = true;
+            std::cout << "White king moved here" << std::endl;
+        } else {
+            blackKingMoved = true;
+        }
+    } else if (selectedPiece->getType() == PieceType::Rook) {
+        if (selectedPiece->getColour() == PieceColour::White) {
+            if (originalPosition / squareSize == sf::Vector2i(0, 7)) {
+                whiteQueensideRookMoved = true;
+            } else if (originalPosition / squareSize == sf::Vector2i(7, 7)) {
+                whiteKingsideRookMoved = true;
+            }
+        } else {
+            // std::cout << "Black rook moved" << std::endl;
+            // std::cout << "Original position: " << originalPosition.x << ", " << originalPosition.y << std::endl;
+            if (originalPosition / squareSize == sf::Vector2i(0, 0)) {
+                blackQueensideRookMoved = true;
+            } else if (originalPosition / squareSize == sf::Vector2i(7, 0)) {
+                blackKingsideRookMoved = true;
+            }
+        }
+    }
+
+    std::cout << "Moving piece" << selectedPiece->getTypeAsString() << std::endl;
+    std::cout << "Target position: " << end.x << ", " << end.y << std::endl;
+    std::cout << "Original position: " << originalPosition.x << ", " << originalPosition.y << std::endl;
+    std::cout << "Selected piece position: " << selectedPiece->getPosition().x << ", " << selectedPiece->getPosition().y << std::endl;
+    bool isPieceAtTarget = false;
+    for (auto& piece : pieces) {
+        if (piece.getBoardPosition() / squareSize == end && selectedPiece != &piece) {
+            std::cout << "Piece at target position: " << piece.getTypeAsString() << std::endl;
+            isPieceAtTarget = true;
+            if (piece.getColour() != selectedPiece->getColour()) {
+                capturePiece(piece);
+            }
             break;
         }
     }
 
-    if(piece == nullptr) {
-        return;
-    }
-
-    switch (type) {
-        case MoveType::Normal:
-            piece->setPosition(end * squareSize);
-            break;
-        case MoveType::Capture:
-            pieces.erase(std::remove_if(pieces.begin(), pieces.end(), [&](const Piece& p) {
-                return p.getBoardPosition() == end;
-            }), pieces.end());
-            piece->setPosition(end);
-            break;
-        case MoveType::Castling:
-            // Handle castling (this is a simplified example, you may need to adjust it)
-            if (end.x == 6) { // Kingside castling
-                piece->setPosition(end);
-                for (Piece& p : pieces) {
-                    if (p.getType() == PieceType::Rook && p.getBoardPosition() == sf::Vector2i(7, start.y)) {
-                        p.setPosition(sf::Vector2i(5, start.y));
-                        break;
-                    }
-                }
-            } else if (end.x == 2) { // Queenside castling
-                piece->setPosition(end);
-                for (Piece& p : pieces) {
-                    if (p.getType() == PieceType::Rook && p.getBoardPosition() == sf::Vector2i(0, start.y)) {
-                        p.setPosition(sf::Vector2i(3, start.y));
-                        break;
-                    }
-                }
+    if (isCheckmate(isWhiteTurn ? PieceColour::Black : PieceColour::White)) {
+        gameOver = true;
+        gameOverMessage = (isWhiteTurn ? "White" : "Black") + std::string(" wins by checkmate!");
+        // Store the position of the king in checkmate
+        for (Piece& piece : pieces) {
+            if (piece.getType() == PieceType::King && piece.getColour() == (isWhiteTurn ? PieceColour::Black : PieceColour::White)) {
+                checkmateKingPosition = sf::Vector2i(piece.getPosition().x / squareSize, piece.getPosition().y / squareSize);
+                break;
             }
-            break;
-        case MoveType::EnPassant:
-            // Handle en passant capture
-            piece->setPosition(end);
-            pieces.erase(std::remove_if(pieces.begin(), pieces.end(), [&](const Piece& p) {
-                return p.getBoardPosition() == sf::Vector2i(end.x, start.y);
-            }), pieces.end());
-            break;
-        case MoveType::Promotion:
-            // Promote the pawn to a queen (this is a simplified example, you may need to allow for other promotions)
-            piece->setPosition(end);
-            piece->setType(PieceType::Queen);
-            break;
+        }
+        std::cout << gameOverMessage << std::endl;
     }
+    endTurn();
+}
+
+Piece* Board::getPiece(int x, int y) {
+    for (Piece& piece : pieces) {
+        if (piece.getBoardPosition() == sf::Vector2i(x * squareSize, y * squareSize)) {
+            return &piece;
+        }
+    }
+    return nullptr;
 }
 
 PieceType showPromotionWindow(sf::RenderWindow& window, PieceColour colour) {

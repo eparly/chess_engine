@@ -1,0 +1,32 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build C++",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "-g",
+                "-Wall",
+                "-Wextra",
+                "${workspaceFolder}/src/main.cpp",
+                "${workspaceFolder}/src/board.cpp",
+                "${workspaceFolder}/src/Piece.cpp",
+                "${workspaceFolder}/src/move.cpp",
+                "${workspaceFolder}/src/engine.cpp",
+                "${workspaceFolder}/src/bitboard.cpp",
+                "-o",
+                "${workspaceFolder}/chessboard",
+                "-lsfml-graphics",
+                "-lsfml-window",
+                "-lsfml-system"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$gcc"],
+            "detail": "Generated task by VS Code"
+        }
+    ]
+}

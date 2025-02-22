@@ -1,8 +1,10 @@
 #include <SFML/Graphics.hpp>
 #include "board.h"
 #include "piece.h"
+#include <iostream>
 
 int main() {
+    std::cout << "Hello, World!" << std::endl;
     sf::RenderWindow window(sf::VideoMode(800, 800), "Chessboard");
 
     int squareSize = 100;

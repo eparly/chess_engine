@@ -27,7 +27,7 @@ Development of a chess engine has started and will be available soon.
 
 2. Compile the project:
     ```sh
-    cg++ main.cpp board.cpp Piece.cpp -o chessboard -lsfml-graphics -lsfml-window -lsfml-system
+    g++ main.cpp board.cpp Piece.cpp -o chessboard -lsfml-graphics -lsfml-window -lsfml-system
     ```
 
 ## How to Play

@@ -3,9 +3,8 @@
 
 #include <string>
 #include <vector>
-#include "piece.h"
-#include "move.h"
-#include "board.h"
+#include <stack>
+#include <utility>
 #include "bitboard.h"
 
 class Engine {
@@ -14,21 +13,37 @@ public:
     void setBoardState(const std::string &fen);
     std::string getBestMove();
     std::string generateFen() const;
+    std::vector<std::pair<int, int>> generateLegalMoves();
+    int evaluateBoard() const;
+    std::pair<int, int> searchBestMove(int depth);
+    void applyMove(const std::pair<int, int>& move);
+    void undoMove();
+    const Bitboard& getBitboard() const;
 
 private:
-    Bitboard bitboard;
-    Board board;
-    bool isWhiteTurn;
-
-    void parseFen(const std::string &fen);
-    std::vector<Move> generateLegalMoves();
-    int evaluateBoard() const;
-    Move searchBestMove(int depth);
+    void parseFen(const std::string& fen);
     int minimax(int depth, int alpha, int beta, bool isMaximizing);
+    void generatePawnMoves(int square, std::vector<std::pair<int, int>>& moves);
+    void generateRookMoves(int square, std::vector<std::pair<int, int>>& moves);
+    void generateKnightMoves(int square, std::vector<std::pair<int, int>>& moves);
+    void generateBishopMoves(int square, std::vector<std::pair<int, int>>& moves);
+    void generateQueenMoves(int square, std::vector<std::pair<int, int>>& moves);
+    void generateKingMoves(int square, std::vector<std::pair<int, int>>& moves);
+    bool isKingInCheck() const;
 
-    void applyMove(const Move &move);
-    void undoMove(const Move &move);
-    void updateBitboard();
-    uint64_t pieceToBitboard(const Piece &piece) const;
+    Bitboard bitboard;
+    bool isWhiteTurn;
+    int enPassantTarget; // Add this member variable
+    uint8_t castlingRights; // Add this member variable (bitmask for castling rights)
+    struct MoveHistory {
+        std::pair<int, int> move;
+        uint64_t movedPiece;
+        uint64_t capturedPiece;
+        int originalPosition;
+        int targetPosition;
+        uint8_t castlingRights; // Add this member variable
+    };
+    std::stack<MoveHistory> moveHistory;
 };
+
 #endif // ENGINE_H
