@@ -29,7 +29,7 @@ private:
     void generateBishopMoves(int square, std::vector<std::pair<int, int>>& moves);
     void generateQueenMoves(int square, std::vector<std::pair<int, int>>& moves);
     void generateKingMoves(int square, std::vector<std::pair<int, int>>& moves);
-    bool isKingInCheck() const;
+    bool isKingInCheck(bool checkWhiteKing) const;
 
     Bitboard bitboard;
     bool isWhiteTurn;
@@ -42,6 +42,7 @@ private:
         int originalPosition;
         int targetPosition;
         uint8_t castlingRights; // Add this member variable
+        int enPassantTarget; // Add this member variable
     };
     std::stack<MoveHistory> moveHistory;
 };
