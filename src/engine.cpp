@@ -14,8 +14,16 @@ void Engine::setBoardState(const std::string &fen) {
 
 std::string Engine::getBestMove() {
     auto bestMove = searchBestMove(5);
+    int start = bestMove.first;
+    int end = bestMove.second;
+
+    char startFile = 'a' + (start % 8);
+    char startRank = '1' + (start / 8);
+    char endFile = 'a' + (end % 8);
+    char endRank = '1' + (end / 8);
+
     std::ostringstream oss;
-    oss << bestMove.first << "-" << bestMove.second;
+    oss << startFile << startRank << endFile << endRank;
     return oss.str();
 }
 
@@ -250,7 +258,7 @@ std::vector<std::pair<int, int>> Engine::generateLegalMoves() {
     // Filter out moves that do not remove the check
     std::vector<std::pair<int, int>> legalMoves;
     for (const auto& move : moves) {
-        applyMove(move);
+        applyMove(move, true);
         if (!isKingInCheck(!isWhiteTurn)) { // Check if the opponent's king is in check
             legalMoves.push_back(move);
         }
@@ -445,26 +453,26 @@ int Engine::evaluateBoard() const {
         bool isWhite = piece & 0x8;
         int pieceType = piece & 0x7;
 
-        // switch (pieceType) {
-        //     case 1: //pawn
-        //         score += isWhite ? PieceTables::pawnTable[square] : -PieceTables::pawnTable[63 - square];
-        //         break;
-        //     case 2: //rook
-        //         score += isWhite ? PieceTables::rookTable[square] : -PieceTables::rookTable[63 - square];
-        //         break;
-        //     case 3: //knight
-        //         score += isWhite ? PieceTables::knightTable[square] : -PieceTables::knightTable[63 - square];
-        //         break;
-        //     case 4: //bishop
-        //         score += isWhite ? PieceTables::bishopTable[square] : -PieceTables::bishopTable[63 - square];
-        //         break;
-        //     case 5: //queen
-        //         score += isWhite ? PieceTables::queenTable[square] : -PieceTables::queenTable[63 - square];
-        //         break;
-        //     case 6: //king
-        //         score += isWhite ? PieceTables::kingTable[square] : -PieceTables::kingTable[63 - square];
-        //         break;
-        // }
+        switch (pieceType) {
+            case 1: //pawn
+                score += isWhite ? PieceTables::pawnTable[square] : -PieceTables::pawnTable[63 - square];
+                break;
+            case 2: //rook
+                score += isWhite ? PieceTables::rookTable[square] : -PieceTables::rookTable[63 - square];
+                break;
+            case 3: //knight
+                score += isWhite ? PieceTables::knightTable[square] : -PieceTables::knightTable[63 - square];
+                break;
+            case 4: //bishop
+                score += isWhite ? PieceTables::bishopTable[square] : -PieceTables::bishopTable[63 - square];
+                break;
+            case 5: //queen
+                score += isWhite ? PieceTables::queenTable[square] : -PieceTables::queenTable[63 - square];
+                break;
+            case 6: //king
+                score += isWhite ? PieceTables::kingTable[square] : -PieceTables::kingTable[63 - square];
+                break;
+        }
         int pieceValue = 0;
         switch (pieceType) {
             case 1: pieceValue = 100; break; // Pawn
@@ -486,7 +494,7 @@ std::pair<int, int> Engine::searchBestMove(int depth) {
     std::pair<int, int> bestMove = {0, 0}; // Initialize with a default move
     std::vector<std::pair<int, int>> legalMoves = generateLegalMoves();
     for (const auto& move : legalMoves) {
-        applyMove(move);
+        applyMove(move, true); // Pass true to indicate this is part of a search
         int score = minimax(depth - 1, -10000, 10000, isWhiteTurn);
         undoMove();
         if(isWhiteTurn) {
@@ -522,7 +530,7 @@ int Engine::minimax(int depth, int alpha, int beta, bool isMaximizing) {
     if (isMaximizing) {
         int maxEval = -10000;
         for (const auto& move : legalMoves) {
-            applyMove(move);
+            applyMove(move, true);
             int eval = minimax(depth - 1, alpha, beta, false);
             undoMove();
             maxEval = std::max(maxEval, eval);
@@ -535,7 +543,7 @@ int Engine::minimax(int depth, int alpha, int beta, bool isMaximizing) {
     } else {
         int minEval = 10000;
         for (const auto& move : legalMoves) {
-            applyMove(move);
+            applyMove(move, true);
             int eval = minimax(depth - 1, alpha, beta, true);
             undoMove();
             minEval = std::min(minEval, eval);
@@ -548,11 +556,32 @@ int Engine::minimax(int depth, int alpha, int beta, bool isMaximizing) {
     }
 }
 
-void Engine::applyMove(const std::pair<int, int>& move) {
+void Engine::promotePawn(int square, char promotionPiece) {
+    uint64_t piece;
+    switch (tolower(promotionPiece)) {
+        case 'q': piece = 5; break; // Queen
+        case 'r': piece = 2; break; // Rook
+        case 'b': piece = 4; break; // Bishop
+        case 'n': piece = 3; break; // Knight
+        default: piece = 5; break; // Default to Queen
+    }
+    if (isWhiteTurn) {
+        piece |= 0x8; // Set the white piece bit
+    }
+    bitboard.setPiece(square, piece);
+}
+
+// void Engine::applyMove(const std::pair<int, int>& move) {
+//     applyMove(move, false);
+// }
+
+void Engine::applyMove(const std::pair<int, int>& move, bool isSearch) {
     int start = move.first;
     int end = move.second;
     uint64_t movedPiece = bitboard.getPiece(start);
     uint64_t capturedPiece = bitboard.getPiece(end);
+    bool wasPromotion = false;
+    uint64_t originalPiece = movedPiece;
 
     // Handle en passant
     if ((movedPiece & 0x7) == 1 && end == enPassantTarget) { // Pawn
@@ -561,13 +590,29 @@ void Engine::applyMove(const std::pair<int, int>& move) {
         bitboard.clearSquare(captureSquare);
     }
 
-    moveHistory.push({move, movedPiece, capturedPiece, start, end, castlingRights, enPassantTarget}); // Save enPassantTarget
+    // Handle pawn promotion
+    if ((movedPiece & 0x7) == 1 && (end / 8 == 0 || end / 8 == 7)) { // Pawn reaches the last rank
+        wasPromotion = true;
+        if (isSearch) {
+            promotePawn(end, 'q'); // Automatically promote to queen during search
+        } else {
+            char promotionPiece;
+            std::cout << "Promote pawn to (q/r/b/n): ";
+            std::cin >> promotionPiece;
+            promotePawn(end, promotionPiece);
+        }
+        movedPiece = bitboard.getPiece(end); // Update movedPiece to the promoted piece
+    } else {
+        bitboard.setPiece(end, movedPiece);
+    }
 
-    bitboard.setPiece(end, movedPiece);
+    moveHistory.push({move, movedPiece, capturedPiece, start, end, castlingRights, enPassantTarget, wasPromotion, originalPiece}); // Save promotion info
+
     bitboard.clearSquare(start);
 
+    // Update en passant target
     if ((movedPiece & 0x7) == 1 && abs(start - end) == 16) { // Pawn double move
-        enPassantTarget = isWhiteTurn ? end - 8 : end + 8;
+        enPassantTarget = isWhiteTurn ? start + 8 : start - 8;
     } else {
         enPassantTarget = -1;
     }
@@ -589,13 +634,6 @@ void Engine::applyMove(const std::pair<int, int>& move) {
                 bitboard.clearSquare(0);
             }
         }
-    }
-
-    // Update en passant target
-    if ((movedPiece & 0x7) == 1 && abs(start - end) == 16) { // Pawn double move
-        enPassantTarget = isWhiteTurn ? start + 8 : start - 8;
-    } else {
-        enPassantTarget = -1;
     }
 
     // Update castling rights
@@ -625,12 +663,12 @@ void Engine::undoMove() {
     moveHistory.pop();
 
     // Restore the moved piece to its original position
-    bitboard.setPiece(lastMove.originalPosition, lastMove.movedPiece);
+    bitboard.setPiece(lastMove.originalPosition, lastMove.wasPromotion ? lastMove.originalPiece : lastMove.movedPiece);
 
     // Restore the captured piece, if any
     if (lastMove.capturedPiece != 0) {
         if ((lastMove.movedPiece & 0x7) == 1 && lastMove.targetPosition == lastMove.enPassantTarget) { // Pawn and en passant
-            int captureSquare = isWhiteTurn ? lastMove.targetPosition - 8 : lastMove.targetPosition + 8;
+            int captureSquare = isWhiteTurn ? lastMove.targetPosition + 8 : lastMove.targetPosition - 8;
             bitboard.setPiece(captureSquare, lastMove.capturedPiece);
             bitboard.clearSquare(lastMove.targetPosition);
         } else {

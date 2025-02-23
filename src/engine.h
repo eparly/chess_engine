@@ -16,9 +16,10 @@ public:
     std::vector<std::pair<int, int>> generateLegalMoves();
     int evaluateBoard() const;
     std::pair<int, int> searchBestMove(int depth);
-    void applyMove(const std::pair<int, int>& move);
+    void applyMove(const std::pair<int, int>& move, bool isSearch = false);
     void undoMove();
     const Bitboard& getBitboard() const;
+    void promotePawn(int square, char promotionPiece);
 
 private:
     void parseFen(const std::string& fen);
@@ -43,6 +44,8 @@ private:
         int targetPosition;
         uint8_t castlingRights; // Add this member variable
         int enPassantTarget; // Add this member variable
+        bool wasPromotion; // Add this member variable
+        uint64_t originalPiece; // Add this member variable
     };
     std::stack<MoveHistory> moveHistory;
 };
