@@ -13,7 +13,7 @@ public:
     void setBoardState(const std::string &fen);
     std::string getBestMove();
     std::string generateFen() const;
-    std::vector<std::pair<int, int>> generateLegalMoves();
+    std::vector<std::pair<int, int>> generateLegalMoves(bool isSearch = false);
     int evaluateBoard() const;
     std::pair<int, int> searchBestMove(int depth);
     void applyMove(const std::pair<int, int>& move, bool isSearch = false);
@@ -31,6 +31,8 @@ private:
     void generateQueenMoves(int square, std::vector<std::pair<int, int>>& moves);
     void generateKingMoves(int square, std::vector<std::pair<int, int>>& moves);
     bool isKingInCheck(bool checkWhiteKing) const;
+    int moveHeuristic(const std::pair<int, int>& move);
+    bool isPawnAttackingKing(int kingSquare, bool checkWhiteKing) const; // Add this method declaration
 
     Bitboard bitboard;
     bool isWhiteTurn;

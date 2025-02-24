@@ -13,7 +13,7 @@ void Engine::setBoardState(const std::string &fen) {
 }
 
 std::string Engine::getBestMove() {
-    auto bestMove = searchBestMove(5);
+    auto bestMove = searchBestMove(1);
     int start = bestMove.first;
     int end = bestMove.second;
 
@@ -151,14 +151,17 @@ bool Engine::isKingInCheck(bool checkWhiteKing) const {
             break;
         }
     }
-    if (kingSquare == -1) {
-        return false; // King not found, should not happen
-    }
+    // if (kingSquare == -1) {
+    //     std::cout << "checkWhiteKing: " << checkWhiteKing << std::endl;
+    //     std::cout << "King not found" << std::endl;
+    //     return false; // King not found, should not happen
+    // }
 
     // Check for attacks from all directions
     static const int directions[] = {8, -8, 1, -1, 9, 7, -9, -7};
     for (int direction : directions) {
         int currentSquare = kingSquare;
+        // std::cout << "King square: " << kingSquare << std::endl;
         while (true) {
             currentSquare += direction;
             if (currentSquare < 0 || currentSquare >= 64 || 
@@ -168,15 +171,28 @@ bool Engine::isKingInCheck(bool checkWhiteKing) const {
                 (direction == 7 && currentSquare % 8 == 7) || 
                 (direction == -9 && currentSquare % 8 == 7) || 
                 (direction == -7 && currentSquare % 8 == 0)) {
+                // std::cout << "Direction: " << direction << std::endl;
+                // std::cout << "Current square: " << currentSquare << std::endl;
                 break;
             }
             uint64_t piece = bitboard.getPiece(currentSquare);
             if (piece != 0) {
+                // std::cout << "Piece found: " << piece << std::endl;
+                // std::cout << "Piece type: " << (piece & 0x7) << std::endl;
+                // std::cout << "Piece colour: " << (piece & 0x8) << std::endl;
+                // std::cout << "Location: " << currentSquare << std::endl;
+                // std::cout << "Check white king: " << (checkWhiteKing ? 0x8 : 0) << std::endl;
                 if ((piece & 0x8) != (checkWhiteKing ? 0x8 : 0)) {
+                    // std::cout << "Piece colour: " << (piece & 0x8) << std::endl;
+                    // std::cout << "Check white king: " << (checkWhiteKing ? 0x8 : 0) << std::endl;
                     int pieceType = piece & 0x7;
-                    if ((pieceType == 2 || pieceType == 5) || // Rook or Queen
-                        (pieceType == 4 || pieceType == 5) || // Bishop or Queen
-                        (pieceType == 6 && abs(direction) <= 1)) { // King
+                    if ((pieceType == 2 || pieceType == 5) && (direction == 8 || direction == -8 || direction == 1 || direction == -1)) { // Rook or Queen (vertical/horizontal)
+                        return true;
+                    }
+                    if ((pieceType == 4 || pieceType == 5) && (direction == 9 || direction == 7 || direction == -9 || direction == -7)) { // Bishop or Queen (diagonal)
+                        return true;
+                    }
+                    if (pieceType == 6 && abs(currentSquare - kingSquare) <= direction){
                         return true;
                     }
                 }
@@ -203,26 +219,40 @@ bool Engine::isKingInCheck(bool checkWhiteKing) const {
     }
 
     // Check for pawn attacks
-    int pawnDirection = checkWhiteKing ? -8 : 8;
+    std::cout << "Checking for pawn attacks" << std::endl;
+    if (isPawnAttackingKing(kingSquare, checkWhiteKing)) {
+        std::cout << "Pawn attacking king" << std::endl;
+        return true;
+    }
+
+    return false;
+}
+
+bool Engine::isPawnAttackingKing(int kingSquare, bool checkWhiteKing) const {
+    int pawnDirection = checkWhiteKing ? 8 : -8;
     int pawnLeft = kingSquare + pawnDirection - 1;
     int pawnRight = kingSquare + pawnDirection + 1;
+    std::cout << "King square: " << kingSquare << std::endl;
+    std::cout << "Pawn left: " << pawnLeft << std::endl;
+    std::cout << "Pawn right: " << pawnRight << std::endl;
     if (pawnLeft >= 0 && pawnLeft < 64 && (pawnLeft % 8) != 7) {
         uint64_t piece = bitboard.getPiece(pawnLeft);
         if ((piece & 0x7) == 1 && ((piece & 0x8) != (checkWhiteKing ? 0x8 : 0))) {
+            std::cout << "Pawn left: " << piece << std::endl;
             return true;
         }
     }
     if (pawnRight >= 0 && pawnRight < 64 && (pawnRight % 8) != 0) {
         uint64_t piece = bitboard.getPiece(pawnRight);
         if ((piece & 0x7) == 1 && ((piece & 0x8) != (checkWhiteKing ? 0x8 : 0))) {
+            std::cout << "Pawn right: " << piece << std::endl;
             return true;
         }
     }
-
     return false;
 }
 
-std::vector<std::pair<int, int>> Engine::generateLegalMoves() {
+std::vector<std::pair<int, int>> Engine::generateLegalMoves(bool isSearch) {
     std::vector<std::pair<int, int>> moves;
     for (int square = 0; square < 64; ++square) {
         uint64_t piece = bitboard.getPiece(square);
@@ -255,11 +285,12 @@ std::vector<std::pair<int, int>> Engine::generateLegalMoves() {
         }
     }
 
-    // Filter out moves that do not remove the check
+    // Filter out moves that leave the king in check
     std::vector<std::pair<int, int>> legalMoves;
     for (const auto& move : moves) {
+        std::cout << "Move: " << move.first << " " << move.second << std::endl;
         applyMove(move, true);
-        if (!isKingInCheck(!isWhiteTurn)) { // Check if the opponent's king is in check
+        if (!isKingInCheck(!isWhiteTurn)) { // Check if the current player's king is in check
             legalMoves.push_back(move);
         }
         undoMove();
@@ -488,43 +519,20 @@ int Engine::evaluateBoard() const {
     return score;
 }
 
-std::pair<int, int> Engine::searchBestMove(int depth) {
-    // Implement a basic minimax search with alpha-beta pruning
-    int bestScore = isWhiteTurn ? -10000 : 10000;
-    std::pair<int, int> bestMove = {0, 0}; // Initialize with a default move
-    std::vector<std::pair<int, int>> legalMoves = generateLegalMoves();
-    for (const auto& move : legalMoves) {
-        applyMove(move, true); // Pass true to indicate this is part of a search
-        int score = minimax(depth - 1, -10000, 10000, isWhiteTurn);
-        undoMove();
-        if(isWhiteTurn) {
-            if(score > bestScore){
-                bestScore = score;
-                bestMove = move;
-            }
+int Engine::minimax(int depth, int alpha, int beta, bool isMaximizing) {
+    std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
+
+    if (legalMoves.empty()) {
+        // std::cout << "No legal moves found." << std::endl;
+        if (isKingInCheck(isMaximizing)) {
+            return isMaximizing ? -10000 : 10000; // Checkmate
         } else {
-            if(score < bestScore){
-                bestScore = score;
-                bestMove = move;
-            }
+            return 0; // Stalemate
         }
     }
-    std::cout << "Best score: " << bestScore << std::endl;
-    return bestMove;
-}
 
-int Engine::minimax(int depth, int alpha, int beta, bool isMaximizing) {
     if (depth == 0) {
         return evaluateBoard();
-    }
-    std::vector<std::pair<int, int>> legalMoves = generateLegalMoves();
-
-    if(legalMoves.empty()) {
-        if(isKingInCheck(isMaximizing)){
-            return isMaximizing ? -10000 : 10000; //checkmate
-        } else {
-            return 0; //stalemate
-        }
     }
 
     if (isMaximizing) {
@@ -554,6 +562,99 @@ int Engine::minimax(int depth, int alpha, int beta, bool isMaximizing) {
         }
         return minEval;
     }
+}
+
+std::pair<int, int> Engine::searchBestMove(int maxDepth) {
+    //iterative deepening search with move ordering
+    std::pair<int, int> bestMove = {0, 0};
+    for (int depth = 1; depth <= maxDepth; ++depth) {
+        int bestScore = -10000;
+        std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
+        std::sort(legalMoves.begin(), legalMoves.end(), [this](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+            return moveHeuristic(a) > moveHeuristic(b);
+        });
+        
+
+        for (const auto& move : legalMoves) {
+            applyMove(move, true);
+            int score = minimax(depth - 1, -10000, 10000, isWhiteTurn); //negamax??
+            undoMove();
+            if (score > bestScore) {
+                    bestScore = score;
+                    bestMove = move;
+            }
+        }
+        // std::cout << "Depth: " << depth << "Best move: " << bestMove.first << " " << bestMove.second << std::endl;
+        // std::cout << "Depth: " << depth << " Best score: " << bestScore << std::endl;
+    }
+    return bestMove;
+
+    // int bestScore = isWhiteTurn ? -10000 : 10000;
+    // std::pair<int, int> bestMove = {0, 0}; // Initialize with a default move
+    // std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
+    // for (const auto& move : legalMoves) {
+    //     std::cout << "Checking move: " << move.first << " " << move.second << std::endl;
+    //     applyMove(move, true); // Pass true to indicate this is part of a search
+    //     int score = minimax(depth - 1, -10000, 10000, isWhiteTurn);
+    //     undoMove();
+    //     std::cout << "Move score: " << score << std::endl;
+    //     if (isWhiteTurn) {
+    //         if (score > bestScore) {
+    //             std::cout << "New best score white: " << score << std::endl;
+    //             bestScore = score;
+    //             bestMove = move;
+    //         }
+    //     } else {
+    //         if (score < bestScore) {
+    //             std::cout << "New best score black: " << score << std::endl;
+    //             bestScore = score;
+    //             bestMove = move;
+    //         }
+    //     }
+    // }
+
+    // // Check if the best score indicates checkmate
+    // if ((isWhiteTurn && bestScore == 10000) || (!isWhiteTurn && bestScore == -10000)) {
+    //     std::cout << "Checkmate is forced." << std::endl;
+    // } else if (bestMove == std::pair<int, int>{0, 0}) {
+    //     std::cout << "No valid moves found." << std::endl;
+    // } else {
+    //     std::cout << "Best score: " << bestScore << std::endl;
+    // }
+
+    // return bestMove;
+}
+
+int Engine::moveHeuristic(const std::pair<int, int>& move) {
+    int start = move.first;
+    int end = move.second;
+    uint64_t movedPiece = bitboard.getPiece(start);
+    uint64_t capturedPiece = bitboard.getPiece(end);
+
+    int score = 0;
+    //prioritize captures of high value pieces
+    if(capturedPiece != 0) {
+        score += 10 * (capturedPiece & 0x7);
+    }
+
+    //prioritize check and checkmate
+    applyMove(move, true);
+    if(isKingInCheck(!isWhiteTurn)) {
+        std::cout << "Check found" << std::endl;
+        score += 5;
+        std::vector<std::pair<int, int>> opponentMoves = generateLegalMoves(true);
+        if(opponentMoves.empty()) {
+            std::cout << "Checkmate found" << std::endl;
+            score += 10000; //checkmate
+        }
+    }
+    undoMove();
+
+    //promotions
+    if ((movedPiece & 0x7) == 1 && (end / 8 == 0 || end / 8 == 7)) {
+        score += 50;
+    }
+    return score;
 }
 
 void Engine::promotePawn(int square, char promotionPiece) {
@@ -742,7 +843,8 @@ void printBitboard(const Bitboard& bitboard) {
 
 void playGame() {
     Engine engine;
-    std::string fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    std::string fen = "7k/8/5KP1/8/8/8/8/8 b - - 0 1";
+    // std::string fen = "8/8/8/8/8/8/KRR5/7k w - - 0 1";
     engine.setBoardState(fen);
 
     while (true) {
@@ -774,7 +876,7 @@ void playGame() {
         int endSquare = endRank * 8 + endFile;
 
         std::pair<int, int> move = {startSquare, endSquare};
-        std::vector<std::pair<int, int>> legalMoves = engine.generateLegalMoves();
+        std::vector<std::pair<int, int>> legalMoves = engine.generateLegalMoves(false);
 
         if (std::find(legalMoves.begin(), legalMoves.end(), move) != legalMoves.end()) {
             engine.applyMove(move);
@@ -789,7 +891,7 @@ void testFENConversion(const std::string& fen) {
     engine.setBoardState(fen);
 
         //generate legal moves
-    std::vector<std::pair<int, int>> legalMoves = engine.generateLegalMoves();
+    std::vector<std::pair<int, int>> legalMoves = engine.generateLegalMoves(false);
     std::cout << "Legal moves:" << std::endl;
     for (const auto& move : legalMoves) {
         std::cout << move.first << "-" << move.second << std::endl;
