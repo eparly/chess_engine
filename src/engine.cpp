@@ -13,7 +13,7 @@ void Engine::setBoardState(const std::string &fen) {
 }
 
 std::string Engine::getBestMove() {
-    auto bestMove = searchBestMove(1);
+    auto bestMove = searchBestMove(4);
     int start = bestMove.first;
     int end = bestMove.second;
 
@@ -219,9 +219,7 @@ bool Engine::isKingInCheck(bool checkWhiteKing) const {
     }
 
     // Check for pawn attacks
-    std::cout << "Checking for pawn attacks" << std::endl;
     if (isPawnAttackingKing(kingSquare, checkWhiteKing)) {
-        std::cout << "Pawn attacking king" << std::endl;
         return true;
     }
 
@@ -232,20 +230,15 @@ bool Engine::isPawnAttackingKing(int kingSquare, bool checkWhiteKing) const {
     int pawnDirection = checkWhiteKing ? 8 : -8;
     int pawnLeft = kingSquare + pawnDirection - 1;
     int pawnRight = kingSquare + pawnDirection + 1;
-    std::cout << "King square: " << kingSquare << std::endl;
-    std::cout << "Pawn left: " << pawnLeft << std::endl;
-    std::cout << "Pawn right: " << pawnRight << std::endl;
     if (pawnLeft >= 0 && pawnLeft < 64 && (pawnLeft % 8) != 7) {
         uint64_t piece = bitboard.getPiece(pawnLeft);
         if ((piece & 0x7) == 1 && ((piece & 0x8) != (checkWhiteKing ? 0x8 : 0))) {
-            std::cout << "Pawn left: " << piece << std::endl;
             return true;
         }
     }
     if (pawnRight >= 0 && pawnRight < 64 && (pawnRight % 8) != 0) {
         uint64_t piece = bitboard.getPiece(pawnRight);
         if ((piece & 0x7) == 1 && ((piece & 0x8) != (checkWhiteKing ? 0x8 : 0))) {
-            std::cout << "Pawn right: " << piece << std::endl;
             return true;
         }
     }
@@ -288,7 +281,6 @@ std::vector<std::pair<int, int>> Engine::generateLegalMoves(bool isSearch) {
     // Filter out moves that leave the king in check
     std::vector<std::pair<int, int>> legalMoves;
     for (const auto& move : moves) {
-        std::cout << "Move: " << move.first << " " << move.second << std::endl;
         applyMove(move, true);
         if (!isKingInCheck(!isWhiteTurn)) { // Check if the current player's king is in check
             legalMoves.push_back(move);
@@ -473,37 +465,39 @@ void Engine::generateKingMoves(int square, std::vector<std::pair<int, int>>& mov
 }
 
 int Engine::evaluateBoard() const {
-
     int score = 0;
     for (int square = 0; square < 64; ++square) {
         uint64_t piece = bitboard.getPiece(square);
-        if(piece == 0){
+        if (piece == 0) {
             continue;
         }
 
         bool isWhite = piece & 0x8;
         int pieceType = piece & 0x7;
 
+        // Piece-square table evaluation
         switch (pieceType) {
-            case 1: //pawn
+            case 1: // Pawn
                 score += isWhite ? PieceTables::pawnTable[square] : -PieceTables::pawnTable[63 - square];
                 break;
-            case 2: //rook
+            case 2: // Rook
                 score += isWhite ? PieceTables::rookTable[square] : -PieceTables::rookTable[63 - square];
                 break;
-            case 3: //knight
+            case 3: // Knight
                 score += isWhite ? PieceTables::knightTable[square] : -PieceTables::knightTable[63 - square];
                 break;
-            case 4: //bishop
+            case 4: // Bishop
                 score += isWhite ? PieceTables::bishopTable[square] : -PieceTables::bishopTable[63 - square];
                 break;
-            case 5: //queen
+            case 5: // Queen
                 score += isWhite ? PieceTables::queenTable[square] : -PieceTables::queenTable[63 - square];
                 break;
-            case 6: //king
+            case 6: // King
                 score += isWhite ? PieceTables::kingTable[square] : -PieceTables::kingTable[63 - square];
                 break;
         }
+
+        // Piece value evaluation
         int pieceValue = 0;
         switch (pieceType) {
             case 1: pieceValue = 100; break; // Pawn
@@ -513,14 +507,79 @@ int Engine::evaluateBoard() const {
             case 5: pieceValue = 900; break; // Queen
             case 6: pieceValue = 20000; break; // King
         }
-
         score += isWhite ? pieceValue : -pieceValue;
+    }
+
+    // Evaluate king safety
+    score += evaluateKingSafety(isWhiteTurn);
+
+    // Evaluate control of the center
+    score += evaluateCenterControl(isWhiteTurn);
+
+    // Evaluate pawn structure
+    score += evaluatePawnStructure(isWhiteTurn);
+
+    return score;
+}
+
+int Engine::evaluateKingSafety(bool isWhite) const {
+    int score = 0;
+    int kingSquare = -1;
+    for (int square = 0; square < 64; ++square) {
+        uint64_t piece = bitboard.getPiece(square);
+        if ((piece & 0x7) == 6 && ((piece & 0x8) == (isWhite ? 0x8 : 0))) {
+            kingSquare = square;
+            break;
+        }
+    }
+    if (kingSquare == -1) return score; // King not found, should not happen
+
+    // Check for pawn shield around the king
+    static const int pawnShieldOffsets[2][3] = {{-8, -9, -7}, {8, 9, 7}};
+    int direction = isWhite ? 0 : 1;
+    for (int i = 0; i < 3; ++i) {
+        int shieldSquare = kingSquare + pawnShieldOffsets[direction][i];
+        if (shieldSquare >= 0 && shieldSquare < 64) {
+            uint64_t piece = bitboard.getPiece(shieldSquare);
+            if ((piece & 0x7) == 1 && ((piece & 0x8) == (isWhite ? 0x8 : 0))) {
+                score += 2; // Pawn shield
+            }
+        }
+    }
+
+    return score;
+}
+
+int Engine::evaluateCenterControl(bool isWhite) const {
+    int score = 0;
+    static const int centerSquares[] = {27, 28, 35, 36}; // D4, E4, D5, E5
+    for (int square : centerSquares) {
+        uint64_t piece = bitboard.getPiece(square);
+        if (piece != 0 && ((piece & 0x8) == (isWhite ? 0x8 : 0))) {
+            score += 3;
+        }
+    }
+    return score;
+}
+
+int Engine::evaluatePawnStructure(bool isWhite) const {
+    int score = 0;
+    for (int square = 0; square < 64; ++square) {
+        uint64_t piece = bitboard.getPiece(square);
+        if ((piece & 0x7) == 1 && ((piece & 0x8) == (isWhite ? 0x8 : 0))) {
+            // Check for doubled pawns, isolated pawns, passed pawns, etc.
+            // Add more logic here if needed
+        }
     }
     return score;
 }
 
 int Engine::minimax(int depth, int alpha, int beta, bool isMaximizing) {
     std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
+
+    if (depth == 0) {
+        return evaluateBoard();
+    }
 
     if (legalMoves.empty()) {
         // std::cout << "No legal moves found." << std::endl;
@@ -529,10 +588,6 @@ int Engine::minimax(int depth, int alpha, int beta, bool isMaximizing) {
         } else {
             return 0; // Stalemate
         }
-    }
-
-    if (depth == 0) {
-        return evaluateBoard();
     }
 
     if (isMaximizing) {
@@ -565,96 +620,34 @@ int Engine::minimax(int depth, int alpha, int beta, bool isMaximizing) {
 }
 
 std::pair<int, int> Engine::searchBestMove(int maxDepth) {
-    //iterative deepening search with move ordering
+    // Iterative deepening search with move ordering
     std::pair<int, int> bestMove = {0, 0};
     for (int depth = 1; depth <= maxDepth; ++depth) {
         int bestScore = -10000;
         std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
+
+        // Sort moves based on a quick evaluation to improve move ordering
         std::sort(legalMoves.begin(), legalMoves.end(), [this](const std::pair<int, int>& a, const std::pair<int, int>& b) {
-            return moveHeuristic(a) > moveHeuristic(b);
+            applyMove(a, true);
+            int scoreA = evaluateBoard();
+            undoMove();
+            applyMove(b, true);
+            int scoreB = evaluateBoard();
+            undoMove();
+            return scoreA > scoreB;
         });
-        
 
         for (const auto& move : legalMoves) {
             applyMove(move, true);
-            int score = minimax(depth - 1, -10000, 10000, isWhiteTurn); //negamax??
+            int score = minimax(depth - 1, -10000, 10000, isWhiteTurn);
             undoMove();
             if (score > bestScore) {
-                    bestScore = score;
-                    bestMove = move;
+                bestScore = score;
+                bestMove = move;
             }
         }
-        // std::cout << "Depth: " << depth << "Best move: " << bestMove.first << " " << bestMove.second << std::endl;
-        // std::cout << "Depth: " << depth << " Best score: " << bestScore << std::endl;
     }
     return bestMove;
-
-    // int bestScore = isWhiteTurn ? -10000 : 10000;
-    // std::pair<int, int> bestMove = {0, 0}; // Initialize with a default move
-    // std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
-    // for (const auto& move : legalMoves) {
-    //     std::cout << "Checking move: " << move.first << " " << move.second << std::endl;
-    //     applyMove(move, true); // Pass true to indicate this is part of a search
-    //     int score = minimax(depth - 1, -10000, 10000, isWhiteTurn);
-    //     undoMove();
-    //     std::cout << "Move score: " << score << std::endl;
-    //     if (isWhiteTurn) {
-    //         if (score > bestScore) {
-    //             std::cout << "New best score white: " << score << std::endl;
-    //             bestScore = score;
-    //             bestMove = move;
-    //         }
-    //     } else {
-    //         if (score < bestScore) {
-    //             std::cout << "New best score black: " << score << std::endl;
-    //             bestScore = score;
-    //             bestMove = move;
-    //         }
-    //     }
-    // }
-
-    // // Check if the best score indicates checkmate
-    // if ((isWhiteTurn && bestScore == 10000) || (!isWhiteTurn && bestScore == -10000)) {
-    //     std::cout << "Checkmate is forced." << std::endl;
-    // } else if (bestMove == std::pair<int, int>{0, 0}) {
-    //     std::cout << "No valid moves found." << std::endl;
-    // } else {
-    //     std::cout << "Best score: " << bestScore << std::endl;
-    // }
-
-    // return bestMove;
-}
-
-int Engine::moveHeuristic(const std::pair<int, int>& move) {
-    int start = move.first;
-    int end = move.second;
-    uint64_t movedPiece = bitboard.getPiece(start);
-    uint64_t capturedPiece = bitboard.getPiece(end);
-
-    int score = 0;
-    //prioritize captures of high value pieces
-    if(capturedPiece != 0) {
-        score += 10 * (capturedPiece & 0x7);
-    }
-
-    //prioritize check and checkmate
-    applyMove(move, true);
-    if(isKingInCheck(!isWhiteTurn)) {
-        std::cout << "Check found" << std::endl;
-        score += 5;
-        std::vector<std::pair<int, int>> opponentMoves = generateLegalMoves(true);
-        if(opponentMoves.empty()) {
-            std::cout << "Checkmate found" << std::endl;
-            score += 10000; //checkmate
-        }
-    }
-    undoMove();
-
-    //promotions
-    if ((movedPiece & 0x7) == 1 && (end / 8 == 0 || end / 8 == 7)) {
-        score += 50;
-    }
-    return score;
 }
 
 void Engine::promotePawn(int square, char promotionPiece) {
@@ -745,10 +738,10 @@ void Engine::applyMove(const std::pair<int, int>& move, bool isSearch) {
             castlingRights &= ~0xC; // Remove black castling rights
         }
     } else if ((movedPiece & 0x7) == 2) { // Rook
-        if (start == 0) castlingRights &= ~0x8; // Remove black queenside
-        if (start == 7) castlingRights &= ~0x4; // Remove black kingside
-        if (start == 56) castlingRights &= ~0x2; // Remove white queenside
-        if (start == 63) castlingRights &= ~0x1; // Remove white kingside
+        if (start == 56) castlingRights &= ~0x8; // Remove black queenside
+        if (start == 63) castlingRights &= ~0x4; // Remove black kingside
+        if (start == 0) castlingRights &= ~0x2; // Remove white queenside
+        if (start == 7) castlingRights &= ~0x1; // Remove white kingside
     }
 
     isWhiteTurn = !isWhiteTurn;
@@ -843,8 +836,7 @@ void printBitboard(const Bitboard& bitboard) {
 
 void playGame() {
     Engine engine;
-    std::string fen = "7k/8/5KP1/8/8/8/8/8 b - - 0 1";
-    // std::string fen = "8/8/8/8/8/8/KRR5/7k w - - 0 1";
+    std::string fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     engine.setBoardState(fen);
 
     while (true) {

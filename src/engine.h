@@ -14,7 +14,7 @@ public:
     std::string getBestMove();
     std::string generateFen() const;
     std::vector<std::pair<int, int>> generateLegalMoves(bool isSearch = false);
-    int evaluateBoard() const;
+    int evaluateBoard() const; // Update the declaration to reflect the combined function
     std::pair<int, int> searchBestMove(int depth);
     void applyMove(const std::pair<int, int>& move, bool isSearch = false);
     void undoMove();
@@ -31,9 +31,11 @@ private:
     void generateQueenMoves(int square, std::vector<std::pair<int, int>>& moves);
     void generateKingMoves(int square, std::vector<std::pair<int, int>>& moves);
     bool isKingInCheck(bool checkWhiteKing) const;
-    int moveHeuristic(const std::pair<int, int>& move);
     bool isPawnAttackingKing(int kingSquare, bool checkWhiteKing) const; // Add this method declaration
 
+    int evaluateKingSafety(bool isWhite) const;
+    int evaluateCenterControl(bool isWhite) const;
+    int evaluatePawnStructure(bool isWhite) const;
     Bitboard bitboard;
     bool isWhiteTurn;
     int enPassantTarget; // Add this member variable
