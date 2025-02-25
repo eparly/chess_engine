@@ -519,7 +519,8 @@ int Engine::evaluateBoard() const {
     // Evaluate pawn structure
     score += evaluatePawnStructure(isWhiteTurn);
 
-    return score;
+    // Return score relative to the side being evaluated
+    return isWhiteTurn ? score : -score;
 }
 
 int Engine::evaluateKingSafety(bool isWhite) const {
@@ -574,49 +575,25 @@ int Engine::evaluatePawnStructure(bool isWhite) const {
     return score;
 }
 
-int Engine::minimax(int depth, int alpha, int beta, bool isMaximizing) {
+int Engine::negamax(int depth, int alpha, int beta, int color) {
     std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
 
-    if (depth == 0) {
-        return evaluateBoard();
+    if (depth == 0 || legalMoves.empty()) {
+        return color * evaluateBoard();
     }
 
-    if (legalMoves.empty()) {
-        // std::cout << "No legal moves found." << std::endl;
-        if (isKingInCheck(isMaximizing)) {
-            return isMaximizing ? -10000 : 10000; // Checkmate
-        } else {
-            return 0; // Stalemate
+    int maxEval = -10000;
+    for (const auto& move : legalMoves) {
+        applyMove(move, true);
+        int eval = -negamax(depth - 1, -beta, -alpha, -color);
+        undoMove();
+        maxEval = std::max(maxEval, eval);
+        alpha = std::max(alpha, eval);
+        if (alpha >= beta) {
+            break;
         }
     }
-
-    if (isMaximizing) {
-        int maxEval = -10000;
-        for (const auto& move : legalMoves) {
-            applyMove(move, true);
-            int eval = minimax(depth - 1, alpha, beta, false);
-            undoMove();
-            maxEval = std::max(maxEval, eval);
-            alpha = std::max(alpha, eval);
-            if (beta <= alpha) {
-                break;
-            }
-        }
-        return maxEval;
-    } else {
-        int minEval = 10000;
-        for (const auto& move : legalMoves) {
-            applyMove(move, true);
-            int eval = minimax(depth - 1, alpha, beta, true);
-            undoMove();
-            minEval = std::min(minEval, eval);
-            beta = std::min(beta, eval);
-            if (beta <= alpha) {
-                break;
-            }
-        }
-        return minEval;
-    }
+    return maxEval;
 }
 
 std::pair<int, int> Engine::searchBestMove(int maxDepth) {
@@ -639,13 +616,15 @@ std::pair<int, int> Engine::searchBestMove(int maxDepth) {
 
         for (const auto& move : legalMoves) {
             applyMove(move, true);
-            int score = minimax(depth - 1, -10000, 10000, isWhiteTurn);
+            int score = -negamax(depth - 1, -10000, 10000, -1);
             undoMove();
             if (score > bestScore) {
                 bestScore = score;
                 bestMove = move;
             }
         }
+        // Print the best move and score at the current depth
+        std::cout << "Depth: " << depth << ", Best Move: " << bestMove.first << " -> " << bestMove.second << ", Score: " << bestScore << std::endl;
     }
     return bestMove;
 }

@@ -24,6 +24,7 @@ public:
 private:
     void parseFen(const std::string& fen);
     int minimax(int depth, int alpha, int beta, bool isMaximizing);
+    int negamax(int depth, int alpha, int beta, int color); // Add this method declaration
     void generatePawnMoves(int square, std::vector<std::pair<int, int>>& moves);
     void generateRookMoves(int square, std::vector<std::pair<int, int>>& moves);
     void generateKnightMoves(int square, std::vector<std::pair<int, int>>& moves);
