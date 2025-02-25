@@ -565,21 +565,61 @@ int Engine::evaluateCenterControl(bool isWhite) const {
 
 int Engine::evaluatePawnStructure(bool isWhite) const {
     int score = 0;
+    std::vector<int> pawnFiles(8, 0); // Track pawns in each file
+
     for (int square = 0; square < 64; ++square) {
         uint64_t piece = bitboard.getPiece(square);
         if ((piece & 0x7) == 1 && ((piece & 0x8) == (isWhite ? 0x8 : 0))) {
-            // Check for doubled pawns, isolated pawns, passed pawns, etc.
-            // Add more logic here if needed
+            int file = square % 8;
+            pawnFiles[file]++;
+
+            // Check for doubled pawns
+            if (pawnFiles[file] > 1) {
+                score -= 10; // Penalty for doubled pawns
+            }
+
+            // Check for isolated pawns
+            bool isolated = true;
+            if (file > 0 && pawnFiles[file - 1] > 0) isolated = false;
+            if (file < 7 && pawnFiles[file + 1] > 0) isolated = false;
+            if (isolated) {
+                score -= 20; // Penalty for isolated pawns
+            }
+
+            // Check for passed pawns
+            bool passed = true;
+            for (int i = 1; i <= 7; ++i) {
+                int checkSquare = isWhite ? square + i * 8 : square - i * 8;
+                if (checkSquare < 0 || checkSquare >= 64) break;
+                uint64_t checkPiece = bitboard.getPiece(checkSquare);
+                if ((checkPiece & 0x7) == 1 && ((checkPiece & 0x8) != (isWhite ? 0x8 : 0))) {
+                    passed = false;
+                    break;
+                }
+            }
+            if (passed) {
+                score += 30; // Bonus for passed pawns
+            }
         }
     }
+
     return score;
 }
 
 int Engine::negamax(int depth, int alpha, int beta, int color) {
     std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
 
-    if (depth == 0 || legalMoves.empty()) {
+    if (depth == 0) {
         return color * evaluateBoard();
+    }
+
+    if (legalMoves.empty()) {
+        // No legal moves, check for checkmate or stalemate
+        if (isKingInCheck(color == 1)) {
+            return -10000; // Checkmate
+        } else {
+            return 0; // Stalemate
+        }
     }
 
     int maxEval = -10000;
@@ -624,7 +664,7 @@ std::pair<int, int> Engine::searchBestMove(int maxDepth) {
             }
         }
         // Print the best move and score at the current depth
-        std::cout << "Depth: " << depth << ", Best Move: " << bestMove.first << " -> " << bestMove.second << ", Score: " << bestScore << std::endl;
+        // std::cout << "Depth: " << depth << ", Best Move: " << bestMove.first << " -> " << bestMove.second << ", Score: " << bestScore << std::endl;
     }
     return bestMove;
 }
