@@ -3,17 +3,20 @@
 #include <sstream>
 #include <vector>
 #include <algorithm> // Add this header
+#include <random>
 #include "bitboard.h"
 #include "piece_tables.h"
 
-Engine::Engine() : isWhiteTurn(true) {}
+Engine::Engine() : isWhiteTurn(true) {
+    initializeZobrist();
+}
 
 void Engine::setBoardState(const std::string &fen) {
     parseFen(fen);
 }
 
 std::string Engine::getBestMove() {
-    auto bestMove = searchBestMove(3);
+    auto bestMove = searchBestMove(6);
     int start = bestMove.first;
     int end = bestMove.second;
 
@@ -25,6 +28,90 @@ std::string Engine::getBestMove() {
     std::ostringstream oss;
     oss << startFile << startRank << endFile << endRank;
     return oss.str();
+}
+
+void Engine::initializeZobrist() {
+    std::mt19937_64 rng(123456789); // Use a fixed seed for reproducibility
+    std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
+
+    // Initialize random values for pieces on squares
+    for (int piece = 0; piece < 12; ++piece) {
+        for (int square = 0; square < 64; ++square) {
+            zobristTable[piece][square] = dist(rng);
+        }
+    }
+
+    // Initialize random values for castling rights
+    for (int i = 0; i < 16; ++i) {
+        zobristCastling[i] = dist(rng);
+    }
+
+    // Initialize random values for en passant files
+    for (int file = 0; file < 8; ++file) {
+        zobristEnPassant[file] = dist(rng);
+    }
+
+    // Initialize random value for the side to move
+    zobristTurn = dist(rng);
+}
+
+void Engine::updateZobristHash(const std::pair<int, int>& move, bool isUndo) {
+    int from = move.first;
+    int to = move.second;
+    // std::cout << (isUndo ? "Undoing move" : "Applying move") << std::endl;
+    // std::cout << "From: " << from << std::endl;
+    // std::cout << "To: " << to << std::endl;
+
+    // Get piece and target piece (use your bitboard representation)
+    int piece = bitboard.getPiece(from); // Example function
+    int capturedPiece = bitboard.getPiece(to);
+
+    // std::cout << "Piece: " << piece << std::endl;
+    // std::cout << "Captured piece: " << capturedPiece << std::endl;
+
+    // XOR out the piece from the original square
+    hash ^= zobristTable[piece][from];
+
+    // XOR in the piece to the target square
+    hash ^= zobristTable[piece][to];
+
+    // If a piece was captured, XOR it out from the target square
+    if (capturedPiece != -1) {
+        hash ^= zobristTable[capturedPiece][to];
+    }
+    // std::cout << "Hash after piece move: " << hash << std::endl;
+    // Handle castling rights
+    hash ^= zobristCastling[castlingRights];
+
+    // std::cout << "Castling rights: " << static_cast<unsigned int>(castlingRights) << std::endl;
+    if (isUndo) {
+        // Restore previous castling rights
+        if(moveHistory.empty()) {
+            // std::cout << "Move history is empty" << std::endl;
+        }
+        else {
+            castlingRights = moveHistory.top().castlingRights;
+        }
+    }
+    hash ^= zobristCastling[castlingRights];
+    // Handle en passant target
+    if (enPassantTarget != -1) {
+        hash ^= zobristEnPassant[enPassantTarget % 8];
+    }
+    if (isUndo) {
+        if (moveHistory.empty()) {
+            // std::cout << "Move history is empty" << std::endl;
+        } else {
+
+            enPassantTarget = moveHistory.top().enPassantTarget;
+        }
+    }
+    if (enPassantTarget != -1) {
+        hash ^= zobristEnPassant[enPassantTarget % 8];
+    }
+
+    // XOR the turn
+    hash ^= zobristTurn;
 }
 
 void Engine::parseFen(const std::string& fen) {
@@ -604,8 +691,21 @@ int Engine::evaluatePawnStructure(bool isWhite) const {
 }
 
 int positionsSearched = 0; // Counter for positions searched
-
+int cacheHits = 0; // Counter for transposition table hits
+int cacheAdded = 0;
 int Engine::negamax(int depth, int alpha, int beta, int color) {
+    TranspositionEntry entry;
+
+    if (transpositionTable.find(hash) != transpositionTable.end()) {
+        cacheHits++; // Increment transposition table hit counter
+        // std::cout << "Cache hit: " << hash << std::endl;
+        entry = transpositionTable[hash];
+        if (entry.depth >= depth) {
+            if (entry.flag == 0) return entry.score; // Exact score
+            if (entry.flag == -1 && entry.score <= alpha) return alpha; // Lower bound
+            if (entry.flag == 1 && entry.score >= beta) return beta; // Upper bound
+        }
+    }
     positionsSearched++; // Increment positions searched counter
     std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
     if (depth == 0) {
@@ -614,7 +714,7 @@ int Engine::negamax(int depth, int alpha, int beta, int color) {
 
     if (legalMoves.empty()) {
         if (isKingInCheck(color == 1)) {
-            std::cout << "Checkmate" << std::endl;
+            // std::cout << "Checkmate" << std::endl;
             return -10000; // Checkmate
         } else {
             return 0; // Stalemate
@@ -622,27 +722,48 @@ int Engine::negamax(int depth, int alpha, int beta, int color) {
     }
 
     // Sort moves based on a quick evaluation to improve move ordering
-    std::sort(legalMoves.begin(), legalMoves.end(), [this](const std::pair<int, int>& a, const std::pair<int, int>& b) {
-        applyMove(a, true);
-        int scoreA = evaluateBoard(isWhiteTurn);
-        undoMove();
-        applyMove(b, true);
-        int scoreB = evaluateBoard(isWhiteTurn);
-        undoMove();
-        return scoreA > scoreB;
-    });
+
 
     int maxEval = -10000;
+    std::pair<int, int> bestMove = {0, 0};
     for (const auto& move : legalMoves) {
         applyMove(move, true);
         int eval = -negamax(depth - 1, -beta, -alpha, -color);
         undoMove();
-        maxEval = std::max(maxEval, eval);
+        if (eval > maxEval) {
+            maxEval = eval;
+            bestMove = move; // Update bestMove
+        }
+
         alpha = std::max(alpha, eval);
         if (alpha >= beta) {
-            break;
+            entry.bestMove = move;
+            entry.depth = depth;
+            entry.score = beta; // Store beta as the lower bound
+            entry.flag = 1;     // Lower bound
+            transpositionTable[hash] = entry;
+            cacheAdded++;
+            return beta; // Beta cutoff
         }
     }
+
+    int flag;
+    if (maxEval <= alpha) {
+        flag = -1; // Lower bound
+    } else if (maxEval >= beta) {
+        flag = 1; // Upper bound
+    } else {
+        flag = 0; // Exact score
+    }
+
+    // Add the entry to the transposition table
+    entry.bestMove = bestMove;
+    entry.depth = depth;
+    entry.score = maxEval;
+    entry.flag = flag;
+    transpositionTable[hash] = entry;
+    // std::cout << "Adding hash: " << hash << std::endl;
+    cacheAdded++;
 
     return maxEval;
 }
@@ -681,6 +802,8 @@ std::pair<int, int> Engine::searchBestMove(int maxDepth) {
 
     // Display statistics
     std::cout << "Positions searched: " << positionsSearched << std::endl;
+    std::cout << "Cache hits: " << cacheHits << std::endl;
+    std::cout << "Cache added: " << cacheAdded << std::endl;
 
     return bestMove;
 }
@@ -711,6 +834,11 @@ void Engine::applyMove(const std::pair<int, int>& move, bool isSearch) {
     uint64_t capturedPiece = bitboard.getPiece(end);
     bool wasPromotion = false;
     uint64_t originalPiece = movedPiece;
+
+
+    updateZobristHash(move, false);
+
+    // std::cout << "Zobrist hash: " << hash << std::endl;
 
     // Handle en passant
     if ((movedPiece & 0x7) == 1 && end == enPassantTarget) { // Pawn
@@ -780,6 +908,8 @@ void Engine::applyMove(const std::pair<int, int>& move, bool isSearch) {
     }
 
     isWhiteTurn = !isWhiteTurn;
+
+    updateZobristHash(move, false);
 }
 
 void Engine::undoMove() {
@@ -790,6 +920,8 @@ void Engine::undoMove() {
 
     MoveHistory lastMove = moveHistory.top();
     moveHistory.pop();
+
+    updateZobristHash(lastMove.move, true);
 
     // Restore the moved piece to its original position
     bitboard.setPiece(lastMove.originalPosition, lastMove.wasPromotion ? lastMove.originalPiece : lastMove.movedPiece);
@@ -833,6 +965,8 @@ void Engine::undoMove() {
     enPassantTarget = lastMove.enPassantTarget;
 
     isWhiteTurn = !isWhiteTurn;
+
+    updateZobristHash(lastMove.move, true);
 }
 
 const Bitboard& Engine::getBitboard() const {

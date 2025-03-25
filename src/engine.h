@@ -5,6 +5,7 @@
 #include <vector>
 #include <stack>
 #include <utility>
+#include <unordered_map>
 #include "bitboard.h"
 
 class Engine {
@@ -54,6 +55,24 @@ private:
         uint64_t originalPiece;
     };
     std::stack<MoveHistory> moveHistory;
+
+    uint64_t zobristTable[12][64]; // Random numbers for pieces on squares (12 pieces: 6 per color)
+    uint64_t zobristCastling[16]; // Random numbers for castling rights (16 combinations)
+    uint64_t zobristEnPassant[8]; // Random numbers for en passant files (8 files)
+    uint64_t zobristTurn;         // Random number for the side to move
+
+    void initializeZobrist();     // Function to initialize Zobrist table
+    void updateZobristHash(const std::pair<int, int>& move, bool isUndo = false);
+
+    struct TranspositionEntry {
+        std::pair<int, int> bestMove;
+        int depth;
+        int score;
+        int flag;
+        int age;
+    };
+
+    std::unordered_map<uint64_t, TranspositionEntry> transpositionTable;
 };
 
 #endif // ENGINE_H
