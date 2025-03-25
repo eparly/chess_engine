@@ -13,7 +13,7 @@ void Engine::setBoardState(const std::string &fen) {
 }
 
 std::string Engine::getBestMove() {
-    auto bestMove = searchBestMove(4);
+    auto bestMove = searchBestMove(3);
     int start = bestMove.first;
     int end = bestMove.second;
 
@@ -62,13 +62,10 @@ void Engine::parseFen(const std::string& fen) {
 
     // Parse castling rights
     castlingRights = 0;
-    if (castlingPart.find('K') != std::string::npos){
-        castlingRights |= 0x1;
-    }
+    if (castlingPart.find('K') != std::string::npos) castlingRights |= 0x1;
     if (castlingPart.find('Q') != std::string::npos) castlingRights |= 0x2;
     if (castlingPart.find('k') != std::string::npos) castlingRights |= 0x4;
     if (castlingPart.find('q') != std::string::npos) castlingRights |= 0x8;
-    std::cout << "Castling rights: " << static_cast<unsigned int>(castlingRights) << std::endl;
 
     // Parse en passant target square
     if (enPassantPart == "-") {
@@ -464,7 +461,7 @@ void Engine::generateKingMoves(int square, std::vector<std::pair<int, int>>& mov
     }
 }
 
-int Engine::evaluateBoard() const {
+int Engine::evaluateBoard(bool isWhite) const {
     int score = 0;
     for (int square = 0; square < 64; ++square) {
         uint64_t piece = bitboard.getPiece(square);
@@ -472,28 +469,28 @@ int Engine::evaluateBoard() const {
             continue;
         }
 
-        bool isWhite = piece & 0x8;
+        bool pieceIsWhite = piece & 0x8;
         int pieceType = piece & 0x7;
 
-        // Piece-square table evaluation
+        // // Piece-square table evaluation
         switch (pieceType) {
             case 1: // Pawn
-                score += isWhite ? PieceTables::pawnTable[square] : -PieceTables::pawnTable[63 - square];
+                score += pieceIsWhite ? PieceTables::pawnTable[square] : -PieceTables::pawnTable[63 - square];
                 break;
             case 2: // Rook
-                score += isWhite ? PieceTables::rookTable[square] : -PieceTables::rookTable[63 - square];
+                score += pieceIsWhite ? PieceTables::rookTable[square] : -PieceTables::rookTable[63 - square];
                 break;
             case 3: // Knight
-                score += isWhite ? PieceTables::knightTable[square] : -PieceTables::knightTable[63 - square];
+                score += pieceIsWhite ? PieceTables::knightTable[square] : -PieceTables::knightTable[63 - square];
                 break;
             case 4: // Bishop
-                score += isWhite ? PieceTables::bishopTable[square] : -PieceTables::bishopTable[63 - square];
+                score += pieceIsWhite ? PieceTables::bishopTable[square] : -PieceTables::bishopTable[63 - square];
                 break;
             case 5: // Queen
-                score += isWhite ? PieceTables::queenTable[square] : -PieceTables::queenTable[63 - square];
+                score += pieceIsWhite ? PieceTables::queenTable[square] : -PieceTables::queenTable[63 - square];
                 break;
             case 6: // King
-                score += isWhite ? PieceTables::kingTable[square] : -PieceTables::kingTable[63 - square];
+                score += pieceIsWhite ? PieceTables::kingTable[square] : -PieceTables::kingTable[63 - square];
                 break;
         }
 
@@ -507,20 +504,20 @@ int Engine::evaluateBoard() const {
             case 5: pieceValue = 900; break; // Queen
             case 6: pieceValue = 20000; break; // King
         }
-        score += isWhite ? pieceValue : -pieceValue;
+        score += pieceIsWhite ? pieceValue : -pieceValue;
     }
 
-    // Evaluate king safety
-    score += evaluateKingSafety(isWhiteTurn);
+    // // Evaluate king safety
+    // score += evaluateKingSafety(isWhite);
 
-    // Evaluate control of the center
-    score += evaluateCenterControl(isWhiteTurn);
+    // // Evaluate control of the center
+    // score += evaluateCenterControl(isWhite);
 
-    // Evaluate pawn structure
-    score += evaluatePawnStructure(isWhiteTurn);
+    // // Evaluate pawn structure
+    // score += evaluatePawnStructure(isWhite);
 
     // Return score relative to the side being evaluated
-    return isWhiteTurn ? score : -score;
+    return isWhite ? score : -score;
 }
 
 int Engine::evaluateKingSafety(bool isWhite) const {
@@ -606,21 +603,34 @@ int Engine::evaluatePawnStructure(bool isWhite) const {
     return score;
 }
 
-int Engine::negamax(int depth, int alpha, int beta, int color) {
-    std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
+int positionsSearched = 0; // Counter for positions searched
 
+int Engine::negamax(int depth, int alpha, int beta, int color) {
+    positionsSearched++; // Increment positions searched counter
+    std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
     if (depth == 0) {
-        return color * evaluateBoard();
+        return evaluateBoard(color == 1);
     }
 
     if (legalMoves.empty()) {
-        // No legal moves, check for checkmate or stalemate
         if (isKingInCheck(color == 1)) {
+            std::cout << "Checkmate" << std::endl;
             return -10000; // Checkmate
         } else {
             return 0; // Stalemate
         }
     }
+
+    // Sort moves based on a quick evaluation to improve move ordering
+    std::sort(legalMoves.begin(), legalMoves.end(), [this](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+        applyMove(a, true);
+        int scoreA = evaluateBoard(isWhiteTurn);
+        undoMove();
+        applyMove(b, true);
+        int scoreB = evaluateBoard(isWhiteTurn);
+        undoMove();
+        return scoreA > scoreB;
+    });
 
     int maxEval = -10000;
     for (const auto& move : legalMoves) {
@@ -633,39 +643,45 @@ int Engine::negamax(int depth, int alpha, int beta, int color) {
             break;
         }
     }
+
     return maxEval;
 }
 
 std::pair<int, int> Engine::searchBestMove(int maxDepth) {
-    // Iterative deepening search with move ordering
     std::pair<int, int> bestMove = {0, 0};
+    positionsSearched = 0; // Reset positions searched counter
+    int bestScore = -10000;
     for (int depth = 1; depth <= maxDepth; ++depth) {
-        int bestScore = -10000;
+        std::cout << "Searching depth " << depth << std::endl;
         std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
-
-        // Sort moves based on a quick evaluation to improve move ordering
-        std::sort(legalMoves.begin(), legalMoves.end(), [this](const std::pair<int, int>& a, const std::pair<int, int>& b) {
-            applyMove(a, true);
-            int scoreA = evaluateBoard();
-            undoMove();
-            applyMove(b, true);
-            int scoreB = evaluateBoard();
-            undoMove();
-            return scoreA > scoreB;
-        });
-
+        std::pair<int, int> currentBestMove = {0, 0};
+        int currentBestScore = -10000;
         for (const auto& move : legalMoves) {
             applyMove(move, true);
-            int score = -negamax(depth - 1, -10000, 10000, -1);
+            int score = -negamax(depth - 1, -10000, 10000, isWhiteTurn ? 1 : -1);
             undoMove();
-            if (score > bestScore) {
-                bestScore = score;
-                bestMove = move;
+            if (score > currentBestScore) {
+                currentBestScore = score;
+                currentBestMove = move;
             }
+            
         }
-        // Print the best move and score at the current depth
-        // std::cout << "Depth: " << depth << ", Best Move: " << bestMove.first << " -> " << bestMove.second << ", Score: " << bestScore << std::endl;
+
+        // Update the best move and score for the current depth
+        
+        bestScore = currentBestScore;
+        bestMove = currentBestMove;
+        
+
+        std::cout << " Best Score at depth " << depth << ": " << bestScore << std::endl;
+        std::cout << " Best move at depth " << depth << ": " << bestMove.first << " " << bestMove.second << std::endl;
+
     }
+    
+
+    // Display statistics
+    std::cout << "Positions searched: " << positionsSearched << std::endl;
+
     return bestMove;
 }
 
@@ -824,7 +840,6 @@ const Bitboard& Engine::getBitboard() const {
 }
 
 //testing fen generation and parsing
-
 void printBitboard(const Bitboard& bitboard) {
     for (int row = 7; row >= 0; --row) {
         for (int col = 0; col < 8; ++col) {
@@ -856,23 +871,21 @@ void printBitboard(const Bitboard& bitboard) {
 void playGame() {
     Engine engine;
     std::string fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    // std::string fen = "3q4/7R/3k4/8/3K4/8/8/3Q4 w - - 0 1";
     engine.setBoardState(fen);
 
     while (true) {
         printBitboard(engine.getBitboard());
-        std::cout << "Evaluation: " << engine.evaluateBoard() << std::endl;
-
+        // std::cout << "Evaluation: " << engine.evaluateBoard() << std::endl;
         std::string bestMove = engine.getBestMove();
         std::cout << "Best move: " << bestMove << std::endl;
 
         std::string moveInput;
         std::cout << "Enter your move (e.g., e2e4): ";
         std::getline(std::cin, moveInput);
-
         if (moveInput == "quit") {
             break;
         }
-
         if (moveInput.length() != 4) {
             std::cout << "Invalid move format. Please enter a move in the format 'e2e4'." << std::endl;
             continue;
@@ -901,23 +914,21 @@ void testFENConversion(const std::string& fen) {
     Engine engine;
     engine.setBoardState(fen);
 
-        //generate legal moves
+    //generate legal moves
     std::vector<std::pair<int, int>> legalMoves = engine.generateLegalMoves(false);
     std::cout << "Legal moves:" << std::endl;
     for (const auto& move : legalMoves) {
         std::cout << move.first << "-" << move.second << std::endl;
     }
     std::cout << "Number of moves: " << legalMoves.size() << std::endl;
-    int eval = engine.evaluateBoard();
-    std::cout << "Evaluation: " << eval << std::endl;
+    // int eval = engine.evaluateBoard();
+    // std::cout << "Evaluation: " << eval << std::endl;
 
     std::cout << "Bitboard representation:" << std::endl;
     printBitboard(engine.getBitboard());
     std::string generatedFEN = engine.generateFen();
-
     std::cout << "Original FEN: " << fen << std::endl;
     std::cout << "Generated FEN: " << generatedFEN << std::endl;
-
     if (fen == generatedFEN) {
         std::cout << "Test passed!" << std::endl;
     } else {

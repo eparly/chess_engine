@@ -17,6 +17,7 @@ void Bitboard::clearSquare(int square) {
 }
 
 void Bitboard::movePiece(int fromSquare, int toSquare) {
-    board[toSquare] = board[fromSquare];
+    uint64_t piece = board[fromSquare];
     board[fromSquare] = 0;
+    board[toSquare] = piece;
 }

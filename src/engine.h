@@ -14,7 +14,7 @@ public:
     std::string getBestMove();
     std::string generateFen() const;
     std::vector<std::pair<int, int>> generateLegalMoves(bool isSearch = false);
-    int evaluateBoard() const; // Update the declaration to reflect the combined function
+    int evaluateBoard(bool isWhite) const;
     std::pair<int, int> searchBestMove(int depth);
     void applyMove(const std::pair<int, int>& move, bool isSearch = false);
     void undoMove();
@@ -24,7 +24,7 @@ public:
 private:
     void parseFen(const std::string& fen);
     int minimax(int depth, int alpha, int beta, bool isMaximizing);
-    int negamax(int depth, int alpha, int beta, int color); // Add this method declaration
+    int negamax(int depth, int alpha, int beta, int color);
     void generatePawnMoves(int square, std::vector<std::pair<int, int>>& moves);
     void generateRookMoves(int square, std::vector<std::pair<int, int>>& moves);
     void generateKnightMoves(int square, std::vector<std::pair<int, int>>& moves);
@@ -32,25 +32,26 @@ private:
     void generateQueenMoves(int square, std::vector<std::pair<int, int>>& moves);
     void generateKingMoves(int square, std::vector<std::pair<int, int>>& moves);
     bool isKingInCheck(bool checkWhiteKing) const;
-    bool isPawnAttackingKing(int kingSquare, bool checkWhiteKing) const; // Add this method declaration
+    bool isPawnAttackingKing(int kingSquare, bool checkWhiteKing) const;
 
     int evaluateKingSafety(bool isWhite) const;
     int evaluateCenterControl(bool isWhite) const;
     int evaluatePawnStructure(bool isWhite) const;
     Bitboard bitboard;
+    uint64_t hash; // Zobrist hash for the current board state
     bool isWhiteTurn;
-    int enPassantTarget; // Add this member variable
-    uint8_t castlingRights; // Add this member variable (bitmask for castling rights)
+    int enPassantTarget;
+    uint8_t castlingRights;
     struct MoveHistory {
         std::pair<int, int> move;
         uint64_t movedPiece;
         uint64_t capturedPiece;
         int originalPosition;
         int targetPosition;
-        uint8_t castlingRights; // Add this member variable
-        int enPassantTarget; // Add this member variable
-        bool wasPromotion; // Add this member variable
-        uint64_t originalPiece; // Add this member variable
+        uint8_t castlingRights;
+        int enPassantTarget;
+        bool wasPromotion;
+        uint64_t originalPiece;
     };
     std::stack<MoveHistory> moveHistory;
 };
