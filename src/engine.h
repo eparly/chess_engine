@@ -25,8 +25,14 @@ public:
 private:
     void parseFen(const std::string& fen);
     int minimax(int depth, int alpha, int beta, bool isMaximizing);
-    int negamax(int depth, int alpha, int beta, int color);
-    void generatePawnMoves(int square, std::vector<std::pair<int, int>>& moves);
+    int negamax(int depth, int alpha, int beta, int color, std::pair<int, int> pvMove = {-1, -1}, int maxDepth=0);
+    int quiescenceSearch(int alpha, int beta);
+
+    std::vector<std::pair<int, int>> generateCaptureMoves();
+
+    bool isCapture(const std::pair<int, int>& move) const;
+    bool isCheck(const std::pair<int, int> &move);
+    void generatePawnMoves(int square, std::vector<std::pair<int, int>> &moves);
     void generateRookMoves(int square, std::vector<std::pair<int, int>>& moves);
     void generateKnightMoves(int square, std::vector<std::pair<int, int>>& moves);
     void generateBishopMoves(int square, std::vector<std::pair<int, int>>& moves);
@@ -73,6 +79,7 @@ private:
     };
 
     std::unordered_map<uint64_t, TranspositionEntry> transpositionTable;
+    std::vector<std::pair<int, int>> principalVariation;
 };
 
 #endif // ENGINE_H

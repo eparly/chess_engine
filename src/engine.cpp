@@ -4,6 +4,9 @@
 #include <vector>
 #include <algorithm> // Add this header
 #include <random>
+
+#include <thread>
+#include <mutex>
 #include "bitboard.h"
 #include "piece_tables.h"
 
@@ -693,7 +696,7 @@ int Engine::evaluatePawnStructure(bool isWhite) const {
 int positionsSearched = 0; // Counter for positions searched
 int cacheHits = 0; // Counter for transposition table hits
 int cacheAdded = 0;
-int Engine::negamax(int depth, int alpha, int beta, int color) {
+int Engine::negamax(int depth, int alpha, int beta, int color, std::pair<int, int> pvMove, int maxDepth) {
     TranspositionEntry entry;
 
     if (transpositionTable.find(hash) != transpositionTable.end()) {
@@ -706,10 +709,30 @@ int Engine::negamax(int depth, int alpha, int beta, int color) {
             if (entry.flag == 1 && entry.score >= beta) return beta; // Upper bound
         }
     }
+
+    //null move pruning
+    if (depth >= 3 && !isKingInCheck(color == 1)) {
+        int R = 2;
+        isWhiteTurn = !isWhiteTurn;
+        int nullMoveScore = -negamax(depth - 1 - R, -beta, -beta + 1, -color, pvMove, maxDepth);
+        isWhiteTurn = !isWhiteTurn;
+        if (nullMoveScore >= beta) {
+            return beta;
+        }
+    }
     positionsSearched++; // Increment positions searched counter
     std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
+
+    // Prioritize the PV move
+    if (pvMove.first != -1 && pvMove.second != -1) {
+        auto it = std::find(legalMoves.begin(), legalMoves.end(), pvMove);
+        if (it != legalMoves.end()) {
+            std::iter_swap(legalMoves.begin(), it); // Move PV move to the front
+            // std::cout << "PV move found" << std::endl;
+        }
+    }
     if (depth == 0) {
-        return evaluateBoard(color == 1);
+        return quiescenceSearch(alpha, beta);
     }
 
     if (legalMoves.empty()) {
@@ -722,14 +745,42 @@ int Engine::negamax(int depth, int alpha, int beta, int color) {
     }
 
     // Sort moves based on a quick evaluation to improve move ordering
-
+    // std::sort(legalMoves.begin(), legalMoves.end(), [this, color](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+    //     applyMove(a, true);
+    //     int evalA = evaluateBoard(color == 1);
+    //     undoMove();
+    //     applyMove(b, true);
+    //     int evalB = evaluateBoard(color == 1);
+    //     undoMove();
+    //     return evalA > evalB;
+    // });
 
     int maxEval = -10000;
     std::pair<int, int> bestMove = {0, 0};
-    for (const auto& move : legalMoves) {
+    for (size_t moveIndex = 0; moveIndex < legalMoves.size(); ++moveIndex) {
+        const auto& move = legalMoves[moveIndex];
         applyMove(move, true);
-        int eval = -negamax(depth - 1, -beta, -alpha, -color);
+
+        // Apply LMR for non-capturing, non-checking moves
+        int reduction = 0;
+        if (depth > 2 && moveIndex > 3 && !isCapture(move) && !isCheck(move)) {
+            reduction = 1; // Reduce depth by 1 ply
+        }
+
+        int eval;
+        if (depth - 1 - reduction > 0) {
+            eval = -negamax(depth - 1 - reduction, -beta, -alpha, -color, bestMove, maxDepth);
+        } else {
+            eval = -negamax(depth - 1, -beta, -alpha, -color, bestMove, maxDepth);
+        }
+
+        // Verification search if reduced-depth search fails high
+        if (reduction > 0 && eval >= beta) {
+            eval = -negamax(depth - 1, -beta, -alpha, -color, bestMove, maxDepth);
+        }
+
         undoMove();
+
         if (eval > maxEval) {
             maxEval = eval;
             bestMove = move; // Update bestMove
@@ -768,9 +819,60 @@ int Engine::negamax(int depth, int alpha, int beta, int color) {
     return maxEval;
 }
 
+int Engine::quiescenceSearch(int alpha, int beta) {
+    int standPat = evaluateBoard(isWhiteTurn);
+    if (standPat >= beta) return beta;
+    if (standPat > alpha) alpha = standPat;
+
+    std::vector<std::pair<int, int>> captureMoves = generateCaptureMoves();
+    for (const auto& move : captureMoves) {
+        applyMove(move, true);
+        int score = -quiescenceSearch(-beta, -alpha);
+        undoMove();
+
+        if (score >= beta) return beta;
+        if (score > alpha) alpha = score;
+    }
+
+    return alpha;
+}
+
+bool Engine::isCapture(const std::pair<int, int>& move) const {
+    int targetSquare = move.second;
+    uint64_t targetPiece = bitboard.getPiece(targetSquare);
+    return targetPiece != 0; // A capture occurs if the target square is not empty
+}
+
+bool Engine::isCheck(const std::pair<int, int>& move) {
+    applyMove(move, true); // Apply the move
+    bool inCheck = isKingInCheck(!isWhiteTurn); // Check if the opponent's king is in check
+    undoMove(); // Undo the move
+    return inCheck;
+}
+
+std::vector<std::pair<int, int>> Engine::generateCaptureMoves() {
+    // Get all legal moves
+    std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
+
+    // Filter moves to include only captures
+    std::vector<std::pair<int, int>> captureMoves;
+    for (const auto& move : legalMoves) {
+        int targetSquare = move.second;
+        uint64_t targetPiece = bitboard.getPiece(targetSquare);
+
+        // Check if the target square contains an opponent's piece
+        if (targetPiece != 0 && ((targetPiece & 0x8) != (isWhiteTurn ? 0x8 : 0))) {
+            captureMoves.push_back(move);
+        }
+    }
+
+    return captureMoves;
+}
+
 std::pair<int, int> Engine::searchBestMove(int maxDepth) {
     std::pair<int, int> bestMove = {0, 0};
     positionsSearched = 0; // Reset positions searched counter
+    principalVariation.clear(); // Clear the principal variation
     int bestScore = -10000;
     for (int depth = 1; depth <= maxDepth; ++depth) {
         std::cout << "Searching depth " << depth << std::endl;
@@ -779,7 +881,7 @@ std::pair<int, int> Engine::searchBestMove(int maxDepth) {
         int currentBestScore = -10000;
         for (const auto& move : legalMoves) {
             applyMove(move, true);
-            int score = -negamax(depth - 1, -10000, 10000, isWhiteTurn ? 1 : -1);
+            int score = -negamax(depth - 1, -10000, 10000, isWhiteTurn ? 1 : -1, bestMove, maxDepth);
             undoMove();
             if (score > currentBestScore) {
                 currentBestScore = score;
@@ -796,6 +898,12 @@ std::pair<int, int> Engine::searchBestMove(int maxDepth) {
 
         std::cout << " Best Score at depth " << depth << ": " << bestScore << std::endl;
         std::cout << " Best move at depth " << depth << ": " << bestMove.first << " " << bestMove.second << std::endl;
+
+        // std::cout << "Principal Variation: ";
+        // for (const auto& move : principalVariation) {
+        //     std::cout << " " << move.first << " " << move.second;
+        // }
+        // std::cout << std::endl;
 
     }
     
