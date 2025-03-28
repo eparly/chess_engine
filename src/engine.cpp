@@ -19,7 +19,7 @@ void Engine::setBoardState(const std::string &fen) {
 }
 
 std::string Engine::getBestMove() {
-    auto bestMove = searchBestMove(6);
+    auto bestMove = searchBestMove(8);
     int start = bestMove.first;
     int end = bestMove.second;
 
@@ -598,13 +598,13 @@ int Engine::evaluateBoard(bool isWhite) const {
     }
 
     // // Evaluate king safety
-    // score += evaluateKingSafety(isWhite);
+    score += evaluateKingSafety(isWhite);
 
-    // // Evaluate control of the center
-    // score += evaluateCenterControl(isWhite);
+    // Evaluate control of the center
+    score += evaluateCenterControl(isWhite);
 
-    // // Evaluate pawn structure
-    // score += evaluatePawnStructure(isWhite);
+    // Evaluate pawn structure
+    score += evaluatePawnStructure(isWhite);
 
     // Return score relative to the side being evaluated
     return isWhite ? score : -score;
@@ -1119,8 +1119,13 @@ void playGame() {
     while (true) {
         printBitboard(engine.getBitboard());
         // std::cout << "Evaluation: " << engine.evaluateBoard() << std::endl;
-        std::string bestMove = engine.getBestMove();
-        std::cout << "Best move: " << bestMove << std::endl;
+        
+        //only evaluate if whites turn
+        std::string bestMove;
+        if(engine.getTurn()){
+            bestMove = engine.getBestMove();
+            std::cout << "Best move: " << bestMove << std::endl;
+        }
 
         std::string moveInput;
         std::cout << "Enter your move (e.g., e2e4): ";

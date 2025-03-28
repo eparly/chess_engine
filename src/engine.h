@@ -21,6 +21,9 @@ public:
     void undoMove();
     const Bitboard& getBitboard() const;
     void promotePawn(int square, char promotionPiece);
+    bool getTurn() const {
+        return isWhiteTurn;
+    };
 
 private:
     void parseFen(const std::string& fen);
