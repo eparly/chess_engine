@@ -4,7 +4,7 @@
 #include <vector>
 #include <algorithm> // Add this header
 #include <random>
-
+#include <chrono>
 #include <thread>
 #include <mutex>
 #include "bitboard.h"
@@ -19,7 +19,7 @@ void Engine::setBoardState(const std::string &fen) {
 }
 
 std::string Engine::getBestMove() {
-    auto bestMove = searchBestMove(8);
+    auto bestMove = searchBestMove(30);
     int start = bestMove.first;
     int end = bestMove.second;
 
@@ -551,7 +551,7 @@ void Engine::generateKingMoves(int square, std::vector<std::pair<int, int>>& mov
     }
 }
 
-int Engine::evaluateBoard(bool isWhite) const {
+int Engine::evaluateBoard(bool isWhite) {
     int score = 0;
     for (int square = 0; square < 64; ++square) {
         uint64_t piece = bitboard.getPiece(square);
@@ -605,6 +605,30 @@ int Engine::evaluateBoard(bool isWhite) const {
 
     // Evaluate pawn structure
     score += evaluatePawnStructure(isWhite);
+
+   
+
+    // Evaluate mobility
+    int whiteMobility = 0;
+    int blackMobility = 0;
+
+    // Temporarily toggle the turn to calculate mobility for both sides
+    bool originalTurn = isWhiteTurn;
+
+    // Calculate white mobility
+    isWhiteTurn = true;
+    whiteMobility = generateLegalMoves(true).size();
+
+    // Calculate black mobility
+    isWhiteTurn = false;
+    blackMobility = generateLegalMoves(true).size();
+
+    // Restore the original turn
+    isWhiteTurn = originalTurn;
+
+    // Add mobility to the score
+    int mobilityDifference = (whiteMobility - blackMobility) * isWhiteTurn ? 1 : -1;
+    score += mobilityDifference * 20; // Assign a weight to mobility
 
     // Return score relative to the side being evaluated
     return isWhite ? score : -score;
@@ -874,6 +898,9 @@ std::pair<int, int> Engine::searchBestMove(int maxDepth) {
     positionsSearched = 0; // Reset positions searched counter
     principalVariation.clear(); // Clear the principal variation
     int bestScore = -10000;
+
+    auto startTime = std::chrono::high_resolution_clock::now(); // Start timer
+
     for (int depth = 1; depth <= maxDepth; ++depth) {
         std::cout << "Searching depth " << depth << std::endl;
         std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
@@ -887,7 +914,13 @@ std::pair<int, int> Engine::searchBestMove(int maxDepth) {
                 currentBestScore = score;
                 currentBestMove = move;
             }
-            
+
+            auto currentTime = std::chrono::high_resolution_clock::now(); // Get current time
+            auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
+            if (elapsedTime > 10000) { // Check if 1 second has passed
+                std::cout << "Time limit reached, stopping search." << std::endl;
+                return bestMove;
+            }
         }
 
         // Update the best move and score for the current depth
@@ -899,6 +932,13 @@ std::pair<int, int> Engine::searchBestMove(int maxDepth) {
         std::cout << " Best Score at depth " << depth << ": " << bestScore << std::endl;
         std::cout << " Best move at depth " << depth << ": " << bestMove.first << " " << bestMove.second << std::endl;
 
+        // Check if time limit has been reached after completing the depth
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
+        if (elapsedTime >= 10000) {
+            std::cout << "Time limit reached. Stopping search." << std::endl;
+            break;
+        }
         // std::cout << "Principal Variation: ";
         // for (const auto& move : principalVariation) {
         //     std::cout << " " << move.first << " " << move.second;
@@ -1112,8 +1152,8 @@ void printBitboard(const Bitboard& bitboard) {
 
 void playGame() {
     Engine engine;
-    std::string fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    // std::string fen = "3q4/7R/3k4/8/3K4/8/8/3Q4 w - - 0 1";
+    // std::string fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    std::string fen = "rnbqkbnr/ppp1pppp/8/8/2pPP3/8/PP3PPP/RNBQKBNR b KQkq - 0 1";
     engine.setBoardState(fen);
 
     while (true) {

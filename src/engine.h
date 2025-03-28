@@ -15,7 +15,7 @@ public:
     std::string getBestMove();
     std::string generateFen() const;
     std::vector<std::pair<int, int>> generateLegalMoves(bool isSearch = false);
-    int evaluateBoard(bool isWhite) const;
+    int evaluateBoard(bool isWhite);
     std::pair<int, int> searchBestMove(int depth);
     void applyMove(const std::pair<int, int>& move, bool isSearch = false);
     void undoMove();
