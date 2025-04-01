@@ -332,7 +332,48 @@ bool Engine::isPawnAttackingKing(int kingSquare, bool checkWhiteKing) const {
     return false;
 }
 
+std::vector<std::pair<int, int>> Engine::generatePseudoLegalMoves() {
+    std::vector<std::pair<int, int>> moves;
+
+    for (int square = 0; square < 64; ++square) {
+        uint64_t piece = bitboard.getPiece(square);
+        if (piece == 0) {
+            continue;
+        }
+        bool isWhite = piece & 0x8;
+        if (isWhite != isWhiteTurn) {
+            continue;
+        }
+        switch (piece & 0x7) {
+            case 1: // Pawn
+                generatePawnMoves(square, moves);
+                break;
+            case 2: // Rook
+                generateRookMoves(square, moves);
+                break;
+            case 3: // Knight
+                generateKnightMoves(square, moves);
+                break;
+            case 4: // Bishop
+                generateBishopMoves(square, moves);
+                break;
+            case 5: // Queen
+                generateQueenMoves(square, moves);
+                break;
+            case 6: // King
+                generateKingMoves(square, moves);
+                break;
+        }
+    }
+
+    return moves;
+}
+
+static long long totalMoveGenerationTime = 0;
 std::vector<std::pair<int, int>> Engine::generateLegalMoves(bool isSearch) {
+    auto startTime = std::chrono::high_resolution_clock::now(); // Start timer
+
+    
     std::vector<std::pair<int, int>> moves;
     for (int square = 0; square < 64; ++square) {
         uint64_t piece = bitboard.getPiece(square);
@@ -366,6 +407,7 @@ std::vector<std::pair<int, int>> Engine::generateLegalMoves(bool isSearch) {
     }
 
     // Filter out moves that leave the king in check
+
     std::vector<std::pair<int, int>> legalMoves;
     for (const auto& move : moves) {
         applyMove(move, true);
@@ -375,7 +417,11 @@ std::vector<std::pair<int, int>> Engine::generateLegalMoves(bool isSearch) {
         undoMove();
     }
 
-    return legalMoves;
+    auto endTime = std::chrono::high_resolution_clock::now(); // End timer
+    totalMoveGenerationTime += std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count(); // Accumulate time
+
+
+    return moves;
 }
 
 void Engine::generatePawnMoves(int square, std::vector<std::pair<int, int>>& moves) {
@@ -535,17 +581,17 @@ void Engine::generateKingMoves(int square, std::vector<std::pair<int, int>>& mov
 
     // Castling moves
     if (isWhiteTurn) {
-        if ((castlingRights & 0x1) && bitboard.getPiece(5) == 0 && bitboard.getPiece(6) == 0) { // White kingside
+        if (!isKingInCheck(isWhiteTurn) && (castlingRights & 0x1) && bitboard.getPiece(5) == 0 && bitboard.getPiece(6) == 0) { // White kingside
             moves.push_back({square, 6});
         }
-        if ((castlingRights & 0x2) && bitboard.getPiece(1) == 0 && bitboard.getPiece(2) == 0 && bitboard.getPiece(3) == 0) { // White queenside
+        if (!isKingInCheck(isWhiteTurn) && (castlingRights & 0x2) && bitboard.getPiece(1) == 0 && bitboard.getPiece(2) == 0 && bitboard.getPiece(3) == 0) { // White queenside
             moves.push_back({square, 2});
         }
     } else {
-        if ((castlingRights & 0x4) && bitboard.getPiece(61) == 0 && bitboard.getPiece(62) == 0) { // Black kingside
+        if (!isKingInCheck(isWhiteTurn) && (castlingRights & 0x4) && bitboard.getPiece(61) == 0 && bitboard.getPiece(62) == 0) { // Black kingside
             moves.push_back({square, 62});
         }
-        if ((castlingRights & 0x8) && bitboard.getPiece(57) == 0 && bitboard.getPiece(58) == 0 && bitboard.getPiece(59) == 0) { // Black queenside
+        if (!isKingInCheck(isWhiteTurn) && (castlingRights & 0x8) && bitboard.getPiece(57) == 0 && bitboard.getPiece(58) == 0 && bitboard.getPiece(59) == 0) { // Black queenside
             moves.push_back({square, 58});
         }
     }
@@ -608,30 +654,30 @@ int Engine::evaluateBoard(bool isWhite) {
 
    
 
-    // Evaluate mobility
-    int whiteMobility = 0;
-    int blackMobility = 0;
+    // // Evaluate mobility
+    // int whiteMobility = 0;
+    // int blackMobility = 0;
 
-    // Temporarily toggle the turn to calculate mobility for both sides
-    bool originalTurn = isWhiteTurn;
+    // // Temporarily toggle the turn to calculate mobility for both sides
+    // bool originalTurn = isWhiteTurn;
 
-    // Calculate white mobility
-    isWhiteTurn = true;
-    whiteMobility = generateLegalMoves(true).size();
+    // // Calculate white mobility
+    // isWhiteTurn = true;
+    // whiteMobility = generateLegalMoves(true).size();
 
-    // Calculate black mobility
-    isWhiteTurn = false;
-    blackMobility = generateLegalMoves(true).size();
+    // // Calculate black mobility
+    // isWhiteTurn = false;
+    // blackMobility = generateLegalMoves(true).size();
 
-    // Restore the original turn
-    isWhiteTurn = originalTurn;
+    // // Restore the original turn
+    // isWhiteTurn = originalTurn;
 
-    // Add mobility to the score
-    int mobilityDifference = (whiteMobility - blackMobility) * isWhiteTurn ? 1 : -1;
-    score += mobilityDifference * 20; // Assign a weight to mobility
+    // // Add mobility to the score
+    // int mobilityDifference = (whiteMobility - blackMobility) * isWhiteTurn ? 1 : -1;
+    // score += mobilityDifference * 20; // Assign a weight to mobility
 
     // Return score relative to the side being evaluated
-    return isWhite ? score : -score;
+    return isWhiteTurn ? score : -score;
 }
 
 int Engine::evaluateKingSafety(bool isWhite) const {
@@ -720,7 +766,13 @@ int Engine::evaluatePawnStructure(bool isWhite) const {
 int positionsSearched = 0; // Counter for positions searched
 int cacheHits = 0; // Counter for transposition table hits
 int cacheAdded = 0;
+
+static long long sortDuration = 0; // Duration for sorting moves
 int Engine::negamax(int depth, int alpha, int beta, int color, std::pair<int, int> pvMove, int maxDepth) {
+    if (depth == 0) {
+        return quiescenceSearch(alpha, beta);
+    }
+    
     TranspositionEntry entry;
 
     if (transpositionTable.find(hash) != transpositionTable.end()) {
@@ -745,20 +797,36 @@ int Engine::negamax(int depth, int alpha, int beta, int color, std::pair<int, in
         }
     }
     positionsSearched++; // Increment positions searched counter
-    std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
+    std::vector<std::pair<int, int>> moves = generatePseudoLegalMoves(); // Generate pseudo-legal moves
+    std::vector<std::pair<int, int>> legalMoves;
+    auto sortStart = std::chrono::high_resolution_clock::now();
 
-    // Prioritize the PV move
-    if (pvMove.first != -1 && pvMove.second != -1) {
-        auto it = std::find(legalMoves.begin(), legalMoves.end(), pvMove);
-        if (it != legalMoves.end()) {
-            std::iter_swap(legalMoves.begin(), it); // Move PV move to the front
-            // std::cout << "PV move found" << std::endl;
+    for (const auto& move : moves) {
+        applyMove(move, true);
+        if (!isKingInCheck(!isWhiteTurn)) { // Check if the current player's king is in check
+            legalMoves.push_back(move);
         }
+        undoMove();
     }
-    if (depth == 0) {
-        return quiescenceSearch(alpha, beta);
-    }
+    auto sortEnd = std::chrono::high_resolution_clock::now(); // End timer
+    sortDuration += std::chrono::duration_cast<std::chrono::microseconds>(sortEnd - sortStart).count(); // Calculate duration
 
+    // std::sort(legalMoves.begin(), legalMoves.end(), [this, color](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+    //     // Apply move 'a' and evaluate
+    //     applyMove(a, true);
+    //     int evalA = evaluateBoard(color == 1);
+    //     undoMove();
+    
+    //     // Apply move 'b' and evaluate
+    //     applyMove(b, true);
+    //     int evalB = evaluateBoard(color == 1);
+    //     undoMove();
+    
+    //     // Higher evaluation comes first
+    //     return evalA > evalB;
+    // });
+
+    
     if (legalMoves.empty()) {
         if (isKingInCheck(color == 1)) {
             // std::cout << "Checkmate" << std::endl;
@@ -767,17 +835,33 @@ int Engine::negamax(int depth, int alpha, int beta, int color, std::pair<int, in
             return 0; // Stalemate
         }
     }
+    // Prioritize the PV move
+    if (pvMove.first != -1 && pvMove.second != -1) {
+        auto it = std::find(legalMoves.begin(), legalMoves.end(), pvMove);
+        if (it != legalMoves.end()) {
+            std::iter_swap(legalMoves.begin(), it); // Move PV move to the front
+            // std::cout << "PV move found" << std::endl;
+        }
+    }
+    // std::cout << "Legal moves: " << legalMoves.size() << std::endl;
+    std::sort(legalMoves.begin() + 1, legalMoves.end(), [this](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+        int aValue = 0, bValue = 0;
 
-    // Sort moves based on a quick evaluation to improve move ordering
-    // std::sort(legalMoves.begin(), legalMoves.end(), [this, color](const std::pair<int, int>& a, const std::pair<int, int>& b) {
-    //     applyMove(a, true);
-    //     int evalA = evaluateBoard(color == 1);
-    //     undoMove();
-    //     applyMove(b, true);
-    //     int evalB = evaluateBoard(color == 1);
-    //     undoMove();
-    //     return evalA > evalB;
-    // });
+        // MVV-LVA: prioritize captures
+        uint64_t aCapturedPiece = bitboard.getPiece(a.second);
+        uint64_t bCapturedPiece = bitboard.getPiece(b.second);
+
+        if (aCapturedPiece != 0) {
+            uint64_t aAttackerPiece = bitboard.getPiece(a.first);
+            aValue = (aCapturedPiece & 0x7) * 10 - (aAttackerPiece & 0x7);
+        }
+        if (bCapturedPiece != 0) {
+            uint64_t bAttackerPiece = bitboard.getPiece(b.first);
+            bValue = (bCapturedPiece & 0x7) * 10 - (bAttackerPiece & 0x7);
+        }
+
+        return aValue > bValue; // Higher value moves come first
+    });
 
     int maxEval = -10000;
     std::pair<int, int> bestMove = {0, 0};
@@ -843,12 +927,12 @@ int Engine::negamax(int depth, int alpha, int beta, int color, std::pair<int, in
     return maxEval;
 }
 
-int Engine::quiescenceSearch(int alpha, int beta) {
+int Engine::quiescenceSearch(int alpha, int beta, const std::vector<std::pair<int, int>>& moves) {
     int standPat = evaluateBoard(isWhiteTurn);
     if (standPat >= beta) return beta;
     if (standPat > alpha) alpha = standPat;
 
-    std::vector<std::pair<int, int>> captureMoves = generateCaptureMoves();
+    std::vector<std::pair<int, int>> captureMoves = generateCaptureMoves(moves);
     for (const auto& move : captureMoves) {
         applyMove(move, true);
         int score = -quiescenceSearch(-beta, -alpha);
@@ -874,10 +958,7 @@ bool Engine::isCheck(const std::pair<int, int>& move) {
     return inCheck;
 }
 
-std::vector<std::pair<int, int>> Engine::generateCaptureMoves() {
-    // Get all legal moves
-    std::vector<std::pair<int, int>> legalMoves = generateLegalMoves(true);
-
+std::vector<std::pair<int, int>> Engine::generateCaptureMoves(const std::vector<std::pair<int, int>>& legalMoves) {
     // Filter moves to include only captures
     std::vector<std::pair<int, int>> captureMoves;
     for (const auto& move : legalMoves) {
@@ -895,9 +976,13 @@ std::vector<std::pair<int, int>> Engine::generateCaptureMoves() {
 
 std::pair<int, int> Engine::searchBestMove(int maxDepth) {
     std::pair<int, int> bestMove = {0, 0};
+    std::pair<int, int> previousBestMove = {0, 0};
     positionsSearched = 0; // Reset positions searched counter
+    totalMoveGenerationTime = 0; // Reset move generation time
+    sortDuration = 0; // Reset sort duration
     principalVariation.clear(); // Clear the principal variation
     int bestScore = -10000;
+    int previousBestScore = -10000;
 
     auto startTime = std::chrono::high_resolution_clock::now(); // Start timer
 
@@ -917,14 +1002,15 @@ std::pair<int, int> Engine::searchBestMove(int maxDepth) {
 
             auto currentTime = std::chrono::high_resolution_clock::now(); // Get current time
             auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
-            if (elapsedTime > 10000) { // Check if 1 second has passed
+            if (elapsedTime > 20000) { // Check if 1 second has passed
                 std::cout << "Time limit reached, stopping search." << std::endl;
-                return bestMove;
+                break;
             }
         }
 
         // Update the best move and score for the current depth
-        
+        previousBestMove = bestMove;
+        previousBestScore = bestScore;
         bestScore = currentBestScore;
         bestMove = currentBestMove;
         
@@ -935,9 +1021,14 @@ std::pair<int, int> Engine::searchBestMove(int maxDepth) {
         // Check if time limit has been reached after completing the depth
         auto currentTime = std::chrono::high_resolution_clock::now();
         auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
-        if (elapsedTime >= 10000) {
+        if (elapsedTime >= 20000) {
             std::cout << "Time limit reached. Stopping search." << std::endl;
-            break;
+            std::cout << "Positions searched: " << positionsSearched << std::endl;
+            std::cout << "Cache hits: " << cacheHits << std::endl;
+            std::cout << "Cache added: " << cacheAdded << std::endl;
+            std::cout << "Total time spent generating moves: " << totalMoveGenerationTime / 1000.0 << " ms" << std::endl;
+            std::cout << "Total time spent sorting moves: " << sortDuration / 1000.0 << " ms" << std::endl;
+            return previousBestMove;
         }
         // std::cout << "Principal Variation: ";
         // for (const auto& move : principalVariation) {
@@ -952,7 +1043,8 @@ std::pair<int, int> Engine::searchBestMove(int maxDepth) {
     std::cout << "Positions searched: " << positionsSearched << std::endl;
     std::cout << "Cache hits: " << cacheHits << std::endl;
     std::cout << "Cache added: " << cacheAdded << std::endl;
-
+    std::cout << "Total time spent generating moves: " << totalMoveGenerationTime / 1000.0 << " ms" << std::endl;
+    std::cout << "Total time spent sorting moves: " << sortDuration / 1000.0 << " ms" << std::endl;
     return bestMove;
 }
 
@@ -1011,17 +1103,6 @@ void Engine::applyMove(const std::pair<int, int>& move, bool isSearch) {
         bitboard.setPiece(end, movedPiece);
     }
 
-    moveHistory.push({move, movedPiece, capturedPiece, start, end, castlingRights, enPassantTarget, wasPromotion, originalPiece}); // Save promotion info
-
-    bitboard.clearSquare(start);
-
-    // Update en passant target
-    if ((movedPiece & 0x7) == 1 && abs(start - end) == 16) { // Pawn double move
-        enPassantTarget = isWhiteTurn ? start + 8 : start - 8;
-    } else {
-        enPassantTarget = -1;
-    }
-
     // Handle castling
     if ((movedPiece & 0x7) == 6) { // King
         if (abs(start - end) == 2) { // Castling move
@@ -1054,6 +1135,50 @@ void Engine::applyMove(const std::pair<int, int>& move, bool isSearch) {
         if (start == 0) castlingRights &= ~0x2; // Remove white queenside
         if (start == 7) castlingRights &= ~0x1; // Remove white kingside
     }
+    moveHistory.push({move, movedPiece, capturedPiece, start, end, castlingRights, enPassantTarget, wasPromotion, originalPiece}); // Save promotion info
+
+    bitboard.clearSquare(start);
+
+    // Update en passant target
+    if ((movedPiece & 0x7) == 1 && abs(start - end) == 16) { // Pawn double move
+        enPassantTarget = isWhiteTurn ? start + 8 : start - 8;
+        // std::cout << "En passant target: " << enPassantTarget << std::endl;
+    } else {
+        enPassantTarget = -1;
+    }
+
+    // // Handle castling
+    // if ((movedPiece & 0x7) == 6) { // King
+    //     if (abs(start - end) == 2) { // Castling move
+    //         if (end == 62) { // White kingside
+    //             bitboard.setPiece(61, bitboard.getPiece(63));
+    //             bitboard.clearSquare(63);
+    //         } else if (end == 58) { // White queenside
+    //             bitboard.setPiece(59, bitboard.getPiece(56));
+    //             bitboard.clearSquare(56);
+    //         } else if (end == 6) { // Black kingside
+    //             bitboard.setPiece(5, bitboard.getPiece(7));
+    //             bitboard.clearSquare(7);
+    //         } else if (end == 2) { // Black queenside
+    //             bitboard.setPiece(3, bitboard.getPiece(0));
+    //             bitboard.clearSquare(0);
+    //         }
+    //     }
+    // }
+
+    // // Update castling rights
+    // if ((movedPiece & 0x7) == 6) { // King
+    //     if (isWhiteTurn) {
+    //         castlingRights &= ~0x3; // Remove white castling rights
+    //     } else {
+    //         castlingRights &= ~0xC; // Remove black castling rights
+    //     }
+    // } else if ((movedPiece & 0x7) == 2) { // Rook
+    //     if (start == 56) castlingRights &= ~0x8; // Remove black queenside
+    //     if (start == 63) castlingRights &= ~0x4; // Remove black kingside
+    //     if (start == 0) castlingRights &= ~0x2; // Remove white queenside
+    //     if (start == 7) castlingRights &= ~0x1; // Remove white kingside
+    // }
 
     isWhiteTurn = !isWhiteTurn;
 
@@ -1073,7 +1198,6 @@ void Engine::undoMove() {
 
     // Restore the moved piece to its original position
     bitboard.setPiece(lastMove.originalPosition, lastMove.wasPromotion ? lastMove.originalPiece : lastMove.movedPiece);
-
     // Restore the captured piece, if any
     if (lastMove.capturedPiece != 0) {
         if ((lastMove.movedPiece & 0x7) == 1 && lastMove.targetPosition == lastMove.enPassantTarget) { // Pawn and en passant
@@ -1152,8 +1276,8 @@ void printBitboard(const Bitboard& bitboard) {
 
 void playGame() {
     Engine engine;
-    // std::string fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    std::string fen = "rnbqkbnr/ppp1pppp/8/8/2pPP3/8/PP3PPP/RNBQKBNR b KQkq - 0 1";
+    std::string fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    // std::string fen = "rnbqkbnr/ppp1pppp/8/8/2pPP3/8/PP3PPP/RNBQKBNR b KQkq - 0 1";
     engine.setBoardState(fen);
 
     while (true) {

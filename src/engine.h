@@ -15,6 +15,7 @@ public:
     std::string getBestMove();
     std::string generateFen() const;
     std::vector<std::pair<int, int>> generateLegalMoves(bool isSearch = false);
+    std::vector<std::pair<int, int>> generatePseudoLegalMoves();
     int evaluateBoard(bool isWhite);
     std::pair<int, int> searchBestMove(int depth);
     void applyMove(const std::pair<int, int>& move, bool isSearch = false);
@@ -29,9 +30,9 @@ private:
     void parseFen(const std::string& fen);
     int minimax(int depth, int alpha, int beta, bool isMaximizing);
     int negamax(int depth, int alpha, int beta, int color, std::pair<int, int> pvMove = {-1, -1}, int maxDepth=0);
-    int quiescenceSearch(int alpha, int beta);
+    int quiescenceSearch(int alpha, int beta, const std::vector<std::pair<int, int>> &moves = {});
 
-    std::vector<std::pair<int, int>> generateCaptureMoves();
+    std::vector<std::pair<int, int>> generateCaptureMoves(const std::vector<std::pair<int, int>> &moves = {});
 
     bool isCapture(const std::pair<int, int>& move) const;
     bool isCheck(const std::pair<int, int> &move);
